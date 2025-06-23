@@ -1,14 +1,29 @@
 package ws
 
 import (
-	"sync"
 	"encoding/json"
-    "log"
+	"log"
+	"sync"
 )
 
 type Hub struct {
 	Rooms map[string]*Room
 	mu    sync.Mutex
+}
+
+type Card struct {
+	ID string  `json:"id"`
+	X  float64 `json:"x"`
+	Y  float64 `json:"y"`
+}
+
+type Room struct {
+	ID        string
+	Clients   map[*Client]bool
+	Register  chan *Client
+	Broadcast chan []byte
+	Cards     map[string]*Card
+	mu        sync.Mutex
 }
 
 func NewHub() *Hub {
@@ -30,22 +45,15 @@ func (h *Hub) GetOrCreateRoom(id string) *Room {
 	return room
 }
 
-type Room struct {
-	ID        string
-	Clients   map[*Client]bool
-	Register  chan *Client
-	Broadcast chan []byte
-	Cards     map[string]*Card
-	mu        sync.Mutex
-}
-
 func NewRoom(id string) *Room {
 	return &Room{
 		ID:        id,
 		Clients:   make(map[*Client]bool),
 		Register:  make(chan *Client),
 		Broadcast: make(chan []byte),
-		Cards:     make(map[string]*Card),
+		Cards: map[string]*Card{
+			"card1": {ID: "card1", X: 100, Y: 100},
+		},
 	}
 }
 
@@ -57,26 +65,25 @@ func (r *Room) Run() {
 			r.Clients[client] = true
 
 			// send current cards to new client
+			cards := make([]*Card, 0, len(r.Cards))
 			for _, card := range r.Cards {
-				data, _ := json.Marshal(card)
-				client.Send <- data
+				cards = append(cards, card)
 			}
+			payload := map[string]interface{}{
+				"type":  "BOARD_STATE",
+				"cards": cards,
+			}
+			data, _ := json.Marshal(payload)
+			client.Send <- data
 			r.mu.Unlock()
 
 		case msg := <-r.Broadcast:
 			r.mu.Lock()
-    		log.Printf("Broadcasting to %d clients", len(r.Clients))
+			log.Printf("Broadcasting to %d clients", len(r.Clients))
 			for c := range r.Clients {
 				c.Send <- msg
 			}
 			r.mu.Unlock()
 		}
 	}
-}
-
-
-type Card struct {
-	ID string  `json:"id"`
-	X  float64 `json:"x"`
-	Y  float64 `json:"y"`
 }

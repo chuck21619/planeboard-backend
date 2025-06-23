@@ -1,8 +1,8 @@
 package ws
 
 import (
-	"net/http"
 	"encoding/json"
+	"net/http"
 
 	"github.com/gorilla/websocket"
 )
@@ -74,12 +74,17 @@ func (c *Client) read() {
 			c.Room.mu.Unlock()
 
 			// Broadcast updated card to all clients
-			updated, _ := json.Marshal(card)
+			wrapped := map[string]interface{}{
+				"type": "MOVE_CARD",
+				"id":   card.ID,
+				"x":    card.X,
+				"y":    card.Y,
+			}
+			updated, _ := json.Marshal(wrapped)
 			c.Room.Broadcast <- updated
 		}
 	}
 }
-
 
 func (c *Client) write() {
 	defer c.Conn.Close()
