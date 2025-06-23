@@ -3,8 +3,14 @@ package ws
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
+)
+
+const (
+	pongWait   = 10 * time.Second
+	pingPeriod = (pongWait * 9) / 10 // send ping slightly before timeout
 )
 
 var upgrader = websocket.Upgrader{
@@ -53,6 +59,13 @@ func (c *Client) read() {
 		c.Room.Unregister <- c
 		c.Conn.Close()
 	}()
+
+	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.Conn.SetPongHandler(func(string) error {
+		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
 	for {
 		_, rawMsg, err := c.Conn.ReadMessage()
 		if err != nil {
@@ -90,13 +103,28 @@ func (c *Client) read() {
 }
 
 func (c *Client) write() {
+	ticker := time.NewTicker(pingPeriod)
 	defer func() {
+		ticker.Stop()
 		c.Room.Unregister <- c
 		c.Conn.Close()
 	}()
-	for msg := range c.Send {
-		if err := c.Conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-			break
+
+	for {
+		select {
+		case msg, ok := <-c.Send:
+			if !ok {
+				// Room closed the channel.
+				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+			if err := c.Conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+				return
+			}
+		case <-ticker.C:
+			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
 		}
 	}
 }
