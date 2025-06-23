@@ -49,7 +49,10 @@ type Message struct {
 }
 
 func (c *Client) read() {
-	defer c.Conn.Close()
+	defer func() {
+		c.Room.Unregister <- c
+		c.Conn.Close()
+	}()
 	for {
 		_, rawMsg, err := c.Conn.ReadMessage()
 		if err != nil {
@@ -87,7 +90,10 @@ func (c *Client) read() {
 }
 
 func (c *Client) write() {
-	defer c.Conn.Close()
+	defer func() {
+		c.Room.Unregister <- c
+		c.Conn.Close()
+	}()
 	for msg := range c.Send {
 		if err := c.Conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 			break

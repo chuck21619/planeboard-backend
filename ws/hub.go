@@ -18,12 +18,13 @@ type Card struct {
 }
 
 type Room struct {
-	ID        string
-	Clients   map[*Client]bool
-	Register  chan *Client
-	Broadcast chan []byte
-	Cards     map[string]*Card
-	mu        sync.Mutex
+	ID         string
+	Clients    map[*Client]bool
+	Register   chan *Client
+	Unregister chan *Client
+	Broadcast  chan []byte
+	Cards      map[string]*Card
+	mu         sync.Mutex
 }
 
 func NewHub() *Hub {
@@ -47,10 +48,11 @@ func (h *Hub) GetOrCreateRoom(id string) *Room {
 
 func NewRoom(id string) *Room {
 	return &Room{
-		ID:        id,
-		Clients:   make(map[*Client]bool),
-		Register:  make(chan *Client),
-		Broadcast: make(chan []byte),
+		ID:         id,
+		Clients:    make(map[*Client]bool),
+		Register:   make(chan *Client),
+		Unregister: make(chan *Client),
+		Broadcast:  make(chan []byte),
 		Cards: map[string]*Card{
 			"card1": {ID: "card1", X: 100, Y: 100},
 		},
@@ -82,6 +84,14 @@ func (r *Room) Run() {
 			log.Printf("Broadcasting to %d clients", len(r.Clients))
 			for c := range r.Clients {
 				c.Send <- msg
+			}
+			r.mu.Unlock()
+
+		case client := <-r.Unregister:
+			r.mu.Lock()
+			if _, ok := r.Clients[client]; ok {
+				delete(r.Clients, client)
+				close(client.Send) // 💥 closes writer goroutine
 			}
 			r.mu.Unlock()
 		}

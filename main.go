@@ -6,9 +6,13 @@ import (
     "os"
 
 	"github.com/chuck21619/planeboard-backend/ws"
+    "github.com/joho/godotenv"
 )
 
 func main() {
+    if err := godotenv.Load(); err != nil {
+        log.Fatal("Error loading .env file")
+    }
 	hub := ws.NewHub()
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
