@@ -21,37 +21,39 @@ type Client struct {
 	Conn *websocket.Conn
 	Send chan []byte
 	Room *Room
+	Username string
+}
+
+type Message struct {
+	Type string  `json:"type"`
+
+	ID   string  `json:"id,omitempty"`
+	X    float64 `json:"x,omitempty"`
+	Y    float64 `json:"y,omitempty"`
 }
 
 func ServeWebSocket(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	roomID := r.URL.Query().Get("room")
+	username := r.URL.Query().Get("username")
+	
 	if roomID == "" {
 		http.Error(w, "Missing room ID", http.StatusBadRequest)
 		return
 	}
-
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
-
 	room := hub.GetOrCreateRoom(roomID)
 	client := &Client{
 		Conn: conn,
 		Send: make(chan []byte),
 		Room: room,
+		Username: username,
 	}
 	room.Register <- client
-
 	go client.read()
 	go client.write()
-}
-
-type Message struct {
-	Type string  `json:"type"`
-	ID   string  `json:"id,omitempty"`
-	X    float64 `json:"x,omitempty"`
-	Y    float64 `json:"y,omitempty"`
 }
 
 func (c *Client) read() {

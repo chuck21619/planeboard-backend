@@ -41,7 +41,14 @@ func (h *Hub) GetOrCreateRoom(id string) *Room {
 	if !exists {
 		room = NewRoom(id)
 		h.Rooms[id] = room
-		go room.Run()
+
+		go func() {
+			room.Run()
+			h.mu.Lock()
+			delete(h.Rooms, id)
+			h.mu.Unlock()
+			log.Printf("Room %s deleted", id)
+		}()
 	}
 	return room
 }
@@ -77,6 +84,21 @@ func (r *Room) Run() {
 			}
 			data, _ := json.Marshal(payload)
 			client.Send <- data
+
+			// broadcast updated player list
+			usernames := make([]string, 0, len(r.Clients))
+			for c := range r.Clients {
+				usernames = append(usernames, c.Username)
+			}
+			joinedPayload := map[string]interface{}{
+				"type":  "USER_JOINED",
+				"users": usernames,
+			}
+			joinedData, _ := json.Marshal(joinedPayload)
+			for c := range r.Clients {
+				c.Send <- joinedData
+			}
+
 			r.mu.Unlock()
 
 		case msg := <-r.Broadcast:
@@ -91,9 +113,26 @@ func (r *Room) Run() {
 			r.mu.Lock()
 			if _, ok := r.Clients[client]; ok {
 				delete(r.Clients, client)
-				close(client.Send) // 💥 closes writer goroutine
+				close(client.Send)
+				usernames := make([]string, 0, len(r.Clients))
+				for c := range r.Clients {
+					usernames = append(usernames, c.Username)
+				}
+				payload := map[string]interface{}{
+					"type":  "USER_LEFT",
+					"users": usernames,
+				}
+				data, _ := json.Marshal(payload)
+				for c := range r.Clients {
+					c.Send <- data
+				}
 			}
-			r.mu.Unlock()
+			if len(r.Clients) == 0 {
+				r.mu.Unlock()
+				return
+			} else {
+				r.mu.Unlock()
+			}
 		}
 	}
 }
