@@ -41,19 +41,17 @@ func (c *Client) read() {
 			c.Username = msg.Username
 			c.Room.mu.Lock()
 			c.Room.DeckURLs[c.Username] = msg.DeckURL
-			deck := &Deck{
-				ID: c.Username,
-				X:  100,
-				Y:  100,
-			}
-			c.Room.Decks[c.Username] = deck
 			payload := map[string]interface{}{
-				"type":  "USER_JOINED",
-				"users": c.Room.GetUsernames(),
-				"decks": c.Room.Decks,
+				"type": "USER_JOINED",
+				"user": c.Username,
+				"deck": c.Room.Decks[c.Username],
 			}
 			joinedData, _ := json.Marshal(payload)
-			c.Room.Broadcast <- joinedData
+			for client := range c.Room.Clients {
+				if client != c {
+					client.Send <- joinedData
+				}
+			}
 			c.Room.mu.Unlock()
 
 		case "MOVE_CARD":

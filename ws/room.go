@@ -43,6 +43,12 @@ func (r *Room) Run() {
 			for _, card := range r.Cards {
 				cards = append(cards, card)
 			}
+			deck := &Deck{
+				ID: client.Username,
+				X:  100,
+				Y:  100,
+			}
+			client.Room.Decks[client.Username] = deck
 			decks := make([]*Deck, 0, len(r.Decks))
 			for _, deck := range r.Decks {
 				decks = append(decks, deck)
@@ -51,6 +57,7 @@ func (r *Room) Run() {
 				"type":  "BOARD_STATE",
 				"cards": cards,
 				"decks": decks,
+				"users": r.GetUsernames(),
 			}
 			data, _ := json.Marshal(payload)
 			client.Send <- data
@@ -69,10 +76,12 @@ func (r *Room) Run() {
 			log.Printf("Client %s disconnected", client.Username)
 			if _, ok := r.Clients[client]; ok {
 				delete(r.Clients, client)
+				delete(r.Decks, client.Username)
+				delete(r.DeckURLs, client.Username)
 				close(client.Send)
 				payload := map[string]interface{}{
 					"type":  "USER_LEFT",
-					"users": r.GetUsernames(),
+					"user": client.Username,
 				}
 				data, _ := json.Marshal(payload)
 				for c := range r.Clients {
