@@ -14,7 +14,8 @@ type Room struct {
 	Broadcast  chan []byte
 	Cards      map[string]*Card
 	mu         sync.Mutex
-	DeckURLs map[string]string
+	DeckURLs   map[string]string
+	Decks      map[string]*Deck
 }
 
 func NewRoom(id string) *Room {
@@ -28,6 +29,7 @@ func NewRoom(id string) *Room {
 			"card1": {ID: "card1", X: 100, Y: 100},
 		},
 		DeckURLs: make(map[string]string),
+		Decks:    make(map[string]*Deck),
 	}
 }
 
@@ -37,15 +39,18 @@ func (r *Room) Run() {
 		case client := <-r.Register:
 			r.mu.Lock()
 			r.Clients[client] = true
-
-			// send current cards to new client
 			cards := make([]*Card, 0, len(r.Cards))
 			for _, card := range r.Cards {
 				cards = append(cards, card)
 			}
+			decks := make([]*Deck, 0, len(r.Decks))
+			for _, deck := range r.Decks {
+				decks = append(decks, deck)
+			}
 			payload := map[string]interface{}{
 				"type":  "BOARD_STATE",
 				"cards": cards,
+				"decks": decks,
 			}
 			data, _ := json.Marshal(payload)
 			client.Send <- data
@@ -61,6 +66,7 @@ func (r *Room) Run() {
 
 		case client := <-r.Unregister:
 			r.mu.Lock()
+			log.Printf("Client %s disconnected", client.Username)
 			if _, ok := r.Clients[client]; ok {
 				delete(r.Clients, client)
 				close(client.Send)
@@ -90,4 +96,3 @@ func (r *Room) GetUsernames() []string {
 	}
 	return usernames
 }
-

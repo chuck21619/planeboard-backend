@@ -41,14 +41,21 @@ func (c *Client) read() {
 			c.Username = msg.Username
 			c.Room.mu.Lock()
 			c.Room.DeckURLs[c.Username] = msg.DeckURL
+			deck := &Deck{
+				ID: c.Username,
+				X:  100,
+				Y:  100,
+			}
+			c.Room.Decks[c.Username] = deck
 			payload := map[string]interface{}{
 				"type":  "USER_JOINED",
 				"users": c.Room.GetUsernames(),
-				"decks": c.Room.DeckURLs,
+				"decks": c.Room.Decks,
 			}
 			joinedData, _ := json.Marshal(payload)
 			c.Room.Broadcast <- joinedData
 			c.Room.mu.Unlock()
+
 		case "MOVE_CARD":
 			c.Room.mu.Lock()
 			card, exists := c.Room.Cards[msg.ID]
@@ -59,8 +66,6 @@ func (c *Client) read() {
 			card.X = msg.X
 			card.Y = msg.Y
 			c.Room.mu.Unlock()
-
-			// Broadcast updated card to all clients
 			wrapped := map[string]interface{}{
 				"type": "MOVE_CARD",
 				"id":   card.ID,
@@ -69,6 +74,27 @@ func (c *Client) read() {
 			}
 			updated, _ := json.Marshal(wrapped)
 			c.Room.Broadcast <- updated
+
+		case "MOVE_DECK":
+			c.Room.mu.Lock()
+			deck, exists := c.Room.Decks[msg.ID]
+			if !exists {
+				c.Room.mu.Unlock()
+				return
+			}
+			deck.X = msg.X
+			deck.Y = msg.Y
+			c.Room.mu.Unlock()
+
+			payload := map[string]interface{}{
+				"type": "MOVE_DECK",
+				"id":   deck.ID,
+				"x":    deck.X,
+				"y":    deck.Y,
+			}
+			data, _ := json.Marshal(payload)
+			c.Room.Broadcast <- data
+
 		}
 	}
 }
@@ -85,7 +111,6 @@ func (c *Client) write() {
 		select {
 		case msg, ok := <-c.Send:
 			if !ok {
-				// Room closed the channel.
 				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
