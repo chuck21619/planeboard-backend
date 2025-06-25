@@ -25,6 +25,7 @@ type Room struct {
 	Broadcast  chan []byte
 	Cards      map[string]*Card
 	mu         sync.Mutex
+	DeckURLs map[string]string
 }
 
 func NewHub() *Hub {
@@ -63,6 +64,7 @@ func NewRoom(id string) *Room {
 		Cards: map[string]*Card{
 			"card1": {ID: "card1", X: 100, Y: 100},
 		},
+		DeckURLs: make(map[string]string),
 	}
 }
 
@@ -84,21 +86,6 @@ func (r *Room) Run() {
 			}
 			data, _ := json.Marshal(payload)
 			client.Send <- data
-
-			// broadcast updated player list
-			usernames := make([]string, 0, len(r.Clients))
-			for c := range r.Clients {
-				usernames = append(usernames, c.Username)
-			}
-			joinedPayload := map[string]interface{}{
-				"type":  "USER_JOINED",
-				"users": usernames,
-			}
-			joinedData, _ := json.Marshal(joinedPayload)
-			for c := range r.Clients {
-				c.Send <- joinedData
-			}
-
 			r.mu.Unlock()
 
 		case msg := <-r.Broadcast:
@@ -114,13 +101,9 @@ func (r *Room) Run() {
 			if _, ok := r.Clients[client]; ok {
 				delete(r.Clients, client)
 				close(client.Send)
-				usernames := make([]string, 0, len(r.Clients))
-				for c := range r.Clients {
-					usernames = append(usernames, c.Username)
-				}
 				payload := map[string]interface{}{
 					"type":  "USER_LEFT",
-					"users": usernames,
+					"users": r.GetUsernames(),
 				}
 				data, _ := json.Marshal(payload)
 				for c := range r.Clients {
@@ -136,3 +119,12 @@ func (r *Room) Run() {
 		}
 	}
 }
+
+func (r *Room) GetUsernames() []string {
+	usernames := []string{}
+	for client := range r.Clients {
+		usernames = append(usernames, client.Username)
+	}
+	return usernames
+}
+

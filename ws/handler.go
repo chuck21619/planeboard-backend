@@ -18,24 +18,27 @@ var upgrader = websocket.Upgrader{
 }
 
 type Client struct {
-	Conn *websocket.Conn
-	Send chan []byte
-	Room *Room
+	Conn     *websocket.Conn
+	Send     chan []byte
+	Room     *Room
 	Username string
 }
 
 type Message struct {
-	Type string  `json:"type"`
+	Type string `json:"type"`
 
-	ID   string  `json:"id,omitempty"`
-	X    float64 `json:"x,omitempty"`
-	Y    float64 `json:"y,omitempty"`
+	ID string  `json:"id,omitempty"`
+	X  float64 `json:"x,omitempty"`
+	Y  float64 `json:"y,omitempty"`
+
+	Username string `json:"username,omitempty"`
+	DeckURL  string `json:"deckUrl,omitempty"`
 }
 
 func ServeWebSocket(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	roomID := r.URL.Query().Get("room")
 	username := r.URL.Query().Get("username")
-	
+
 	if roomID == "" {
 		http.Error(w, "Missing room ID", http.StatusBadRequest)
 		return
@@ -46,9 +49,9 @@ func ServeWebSocket(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	}
 	room := hub.GetOrCreateRoom(roomID)
 	client := &Client{
-		Conn: conn,
-		Send: make(chan []byte),
-		Room: room,
+		Conn:     conn,
+		Send:     make(chan []byte),
+		Room:     room,
 		Username: username,
 	}
 	room.Register <- client
@@ -80,6 +83,18 @@ func (c *Client) read() {
 		}
 
 		switch msg.Type {
+		case "JOIN":
+			c.Username = msg.Username
+			c.Room.mu.Lock()
+			c.Room.DeckURLs[c.Username] = msg.DeckURL
+			payload := map[string]interface{}{
+				"type":  "USER_JOINED",
+				"users": c.Room.GetUsernames(),
+				"decks": c.Room.DeckURLs,
+			}
+			joinedData, _ := json.Marshal(payload)
+			c.Room.Broadcast <- joinedData
+			c.Room.mu.Unlock()
 		case "MOVE_CARD":
 			c.Room.mu.Lock()
 			card, exists := c.Room.Cards[msg.ID]
