@@ -33,6 +33,22 @@ func NewRoom(id string) *Room {
 	}
 }
 
+func (r *Room) BroadcastSafe(msg []byte) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for client := range r.Clients {
+		select {
+		case client.Send <- msg:
+			// message sent successfully
+		default:
+			// send channel blocked or closed — close client safely
+			log.Printf("dropping unresponsive client: %s", client.Username)
+			client.close()
+		}
+	}
+}
+
 func (r *Room) Run() {
 	for {
 		select {
@@ -70,12 +86,8 @@ func (r *Room) Run() {
 			r.mu.Unlock()
 
 		case msg := <-r.Broadcast:
-			r.mu.Lock()
 			log.Printf("Broadcasting to %d clients", len(r.Clients))
-			for c := range r.Clients {
-				c.Send <- msg
-			}
-			r.mu.Unlock()
+			r.BroadcastSafe(msg)
 
 		case client := <-r.Unregister:
 			r.mu.Lock()
@@ -89,16 +101,19 @@ func (r *Room) Run() {
 					"user": client.Username,
 				}
 				data, _ := json.Marshal(payload)
-				for c := range r.Clients {
-					c.Send <- data
-				}
-			}
-			if len(r.Clients) == 0 {
-				r.mu.Unlock()
-				return
+				r.mu.Unlock() // unlock before broadcasting
+				r.BroadcastSafe(data)
 			} else {
 				r.mu.Unlock()
 			}
+
+			r.mu.Lock()
+			if len(r.Clients) == 0 {
+				r.mu.Unlock()
+				return
+			}
+			r.mu.Unlock()
+
 		}
 	}
 }

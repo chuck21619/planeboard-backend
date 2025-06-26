@@ -75,9 +75,7 @@ func (c *Client) read() {
 				"decks": c.Room.Decks,
 			}
 			joinedData, _ := json.Marshal(payload)
-			for client := range c.Room.Clients {
-				client.Send <- joinedData
-			}
+			c.Room.BroadcastSafe(joinedData)
 
 		case "MOVE_CARD":
 			c.Room.mu.Lock()
