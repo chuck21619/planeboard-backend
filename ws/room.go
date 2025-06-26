@@ -84,7 +84,6 @@ func (r *Room) Run() {
 				delete(r.Clients, client)
 				delete(r.Decks, client.Username)
 				delete(r.DeckURLs, client.Username)
-				close(client.Send)
 				payload := map[string]interface{}{
 					"type": "USER_LEFT",
 					"user": client.Username,

@@ -5,6 +5,7 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"time"
+	"sync"
 )
 
 type Client struct {
@@ -12,12 +13,20 @@ type Client struct {
 	Send     chan []byte
 	Room     *Room
 	Username string
+    closeOnce sync.Once
+}
+
+func (c *Client) close() {
+    c.closeOnce.Do(func() {
+        c.Room.Unregister <- c
+        c.Conn.Close()
+        close(c.Send)
+    })
 }
 
 func (c *Client) read() {
 	defer func() {
-		c.Room.Unregister <- c
-		c.Conn.Close()
+		c.close()
 	}()
 
 	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -51,7 +60,6 @@ func (c *Client) read() {
 				return
 			}
 			c.Room.mu.Lock()
-			defer c.Room.mu.Unlock()
 			c.Room.DeckURLs[c.Username] = msg.DeckURL
 			deck := &Deck{
 				ID:    c.Username,
@@ -60,6 +68,7 @@ func (c *Client) read() {
 				Cards: parsedCards,
 			}
 			c.Room.Decks[c.Username] = deck
+			c.Room.mu.Unlock()
 			payload := map[string]interface{}{
 				"type":  "USER_JOINED",
 				"users": c.Room.GetUsernames(),
@@ -69,7 +78,6 @@ func (c *Client) read() {
 			for client := range c.Room.Clients {
 				client.Send <- joinedData
 			}
-			c.Room.mu.Unlock()
 
 		case "MOVE_CARD":
 			c.Room.mu.Lock()
@@ -118,8 +126,7 @@ func (c *Client) write() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		c.Room.Unregister <- c
-		c.Conn.Close()
+		c.close()
 	}()
 
 	for {
