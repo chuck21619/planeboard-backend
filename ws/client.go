@@ -61,15 +61,13 @@ func (c *Client) read() {
 			}
 			c.Room.Decks[c.Username] = deck
 			payload := map[string]interface{}{
-				"type": "USER_JOINED",
-				"user": c.Username,
-				"deck": deck,
+				"type":  "USER_JOINED",
+				"users": c.Room.GetUsernames(),
+				"decks": c.Room.Decks,
 			}
 			joinedData, _ := json.Marshal(payload)
 			for client := range c.Room.Clients {
-				if client != c {
-					client.Send <- joinedData
-				}
+				client.Send <- joinedData
 			}
 			c.Room.mu.Unlock()
 
