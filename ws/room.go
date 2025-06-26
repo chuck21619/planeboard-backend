@@ -12,7 +12,7 @@ type Room struct {
 	Register   chan *Client
 	Unregister chan *Client
 	Broadcast  chan []byte
-	Cards      map[string]*Card
+	Cards      map[string]*BoardCard
 	mu         sync.Mutex
 	DeckURLs   map[string]string
 	Decks      map[string]*Deck
@@ -25,7 +25,7 @@ func NewRoom(id string) *Room {
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
 		Broadcast:  make(chan []byte),
-		Cards: map[string]*Card{
+		Cards: map[string]*BoardCard{
 			"card1": {ID: "card1", X: 100, Y: 100},
 		},
 		DeckURLs: make(map[string]string),
@@ -39,7 +39,7 @@ func (r *Room) Run() {
 		case client := <-r.Register:
 			r.mu.Lock()
 			r.Clients[client] = true
-			cards := make([]*Card, 0, len(r.Cards))
+			cards := make([]*BoardCard, 0, len(r.Cards))
 			for _, card := range r.Cards {
 				cards = append(cards, card)
 			}

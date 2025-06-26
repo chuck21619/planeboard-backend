@@ -3,6 +3,7 @@ package ws
 import (
 	"encoding/json"
 	"github.com/gorilla/websocket"
+	"log"
 	"time"
 )
 
@@ -39,13 +40,24 @@ func (c *Client) read() {
 		switch msg.Type {
 		case "JOIN":
 			c.Username = msg.Username
+			rawDeckJSON, err := FetchDeckJSON(msg.DeckURL)
+			if err != nil {
+				log.Printf("error fetching deck: %v", err)
+				return
+			}
+			parsedCards, err := ParseDeck(rawDeckJSON)
+			if err != nil {
+				log.Printf("error parsing deck: %v", err)
+				return
+			}
 			c.Room.mu.Lock()
+			defer c.Room.mu.Unlock()
 			c.Room.DeckURLs[c.Username] = msg.DeckURL
 			deck := &Deck{
 				ID:    c.Username,
 				X:     100,
 				Y:     100,
-				Cards: msg.Cards,
+				Cards: parsedCards,
 			}
 			c.Room.Decks[c.Username] = deck
 			payload := map[string]interface{}{
@@ -65,7 +77,7 @@ func (c *Client) read() {
 			c.Room.mu.Lock()
 			card, exists := c.Room.Cards[msg.ID]
 			if !exists {
-				card = &Card{ID: msg.ID}
+				card = &BoardCard{ID: msg.ID}
 				c.Room.Cards[msg.ID] = card
 			}
 			card.X = msg.X

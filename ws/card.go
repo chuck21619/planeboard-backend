@@ -1,9 +1,15 @@
 package ws
 
-type Card struct {
+type BoardCard struct {
 	ID       string  `json:"id"`
 	Name     string  `json:"name"`
 	ImageURL string  `json:"imageUrl"`
 	X        float64 `json:"x"`
 	Y        float64 `json:"y"`
+}
+
+type Card struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	ImageURL string `json:"imageUrl"`
 }
