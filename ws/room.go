@@ -80,7 +80,7 @@ func (r *Room) Run() {
 				delete(r.DeckURLs, client.Username)
 				close(client.Send)
 				payload := map[string]interface{}{
-					"type":  "USER_LEFT",
+					"type": "USER_LEFT",
 					"user": client.Username,
 				}
 				data, _ := json.Marshal(payload)

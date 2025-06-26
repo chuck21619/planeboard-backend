@@ -9,4 +9,6 @@ type Message struct {
 
 	Username string `json:"username,omitempty"`
 	DeckURL  string `json:"deckUrl,omitempty"`
+
+	Cards []Card `json:"cards,omitempty"`
 }

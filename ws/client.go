@@ -41,10 +41,17 @@ func (c *Client) read() {
 			c.Username = msg.Username
 			c.Room.mu.Lock()
 			c.Room.DeckURLs[c.Username] = msg.DeckURL
+			deck := &Deck{
+				ID:    c.Username,
+				X:     100,
+				Y:     100,
+				Cards: msg.Cards,
+			}
+			c.Room.Decks[c.Username] = deck
 			payload := map[string]interface{}{
 				"type": "USER_JOINED",
 				"user": c.Username,
-				"deck": c.Room.Decks[c.Username],
+				"deck": deck,
 			}
 			joinedData, _ := json.Marshal(payload)
 			for client := range c.Room.Clients {
