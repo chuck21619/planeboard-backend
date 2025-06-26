@@ -58,6 +58,12 @@ func (r *Room) Run() {
 				"cards": cards,
 				"decks": decks,
 				"users": r.GetUsernames(),
+				"positions": map[string]string{
+					"alice":   "topLeft",
+					"bob":     "topRight",
+					"charlie": "bottomLeft",
+					"diana":   "bottomRight",
+				},
 			}
 			data, _ := json.Marshal(payload)
 			client.Send <- data
