@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"log"
 )
 
 func WebpageURLToAPIURL(webpageURL string) (string, error) {
@@ -26,12 +25,9 @@ func WebpageURLToAPIURL(webpageURL string) (string, error) {
 func FetchDeckJSON(deckURL string) ([]byte, error) {
 	apiURL, err := WebpageURLToAPIURL(deckURL)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("failed to fetch deck: %w", err)
 	}
 	resp, err := http.Get(apiURL)
-	if err != nil {
-		log.Fatal(err)
-	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch deck: %w", err)
 	}
@@ -39,7 +35,6 @@ func FetchDeckJSON(deckURL string) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("non-200 response: %s", resp.Status)
 	}
-
 	return io.ReadAll(resp.Body)
 }
 
