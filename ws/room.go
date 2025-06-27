@@ -6,16 +6,19 @@ import (
 	"sync"
 )
 
+var defaultPositions = []string{"topLeft", "topRight", "bottomLeft", "bottomRight"}
+
 type Room struct {
-	ID         string
-	Clients    map[*Client]bool
-	Register   chan *Client
-	Unregister chan *Client
-	Broadcast  chan []byte
-	Cards      map[string]*BoardCard
-	mu         sync.Mutex
-	DeckURLs   map[string]string
-	Decks      map[string]*Deck
+	ID              string
+	Clients         map[*Client]bool
+	Register        chan *Client
+	Unregister      chan *Client
+	Broadcast       chan []byte
+	Cards           map[string]*BoardCard
+	mu              sync.Mutex
+	DeckURLs        map[string]string
+	Decks           map[string]*Deck
+	PlayerPositions map[string]string
 }
 
 func NewRoom(id string) *Room {
@@ -69,17 +72,16 @@ func (r *Room) Run() {
 			for _, deck := range r.Decks {
 				decks = append(decks, deck)
 			}
+			if r.PlayerPositions == nil {
+				r.PlayerPositions = make(map[string]string)
+			}
+			r.PlayerPositions[client.Username] = defaultPositions[len(r.PlayerPositions)]
 			payload := map[string]interface{}{
-				"type":  "BOARD_STATE",
-				"cards": cards,
-				"decks": decks,
-				"users": r.GetUsernames(),
-				"positions": map[string]string{
-					"alice":   "topLeft",
-					"bob":     "topRight",
-					"charlie": "bottomLeft",
-					"diana":   "bottomRight",
-				},
+				"type":      "BOARD_STATE",
+				"cards":     cards,
+				"decks":     decks,
+				"users":     r.GetUsernames(),
+				"positions": r.PlayerPositions,
 			}
 			data, _ := json.Marshal(payload)
 			client.Send <- data
@@ -96,9 +98,11 @@ func (r *Room) Run() {
 				delete(r.Clients, client)
 				delete(r.Decks, client.Username)
 				delete(r.DeckURLs, client.Username)
+				delete(r.PlayerPositions, client.Username)
 				payload := map[string]interface{}{
-					"type": "USER_LEFT",
-					"user": client.Username,
+					"type":      "USER_LEFT",
+					"user":      client.Username,
+					"positions": r.PlayerPositions,
 				}
 				data, _ := json.Marshal(payload)
 				r.mu.Unlock() // unlock before broadcasting

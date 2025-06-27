@@ -4,24 +4,24 @@ import (
 	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
-	"time"
 	"sync"
+	"time"
 )
 
 type Client struct {
-	Conn     *websocket.Conn
-	Send     chan []byte
-	Room     *Room
-	Username string
-    closeOnce sync.Once
+	Conn      *websocket.Conn
+	Send      chan []byte
+	Room      *Room
+	Username  string
+	closeOnce sync.Once
 }
 
 func (c *Client) close() {
-    c.closeOnce.Do(func() {
-        c.Room.Unregister <- c
-        c.Conn.Close()
-        close(c.Send)
-    })
+	c.closeOnce.Do(func() {
+		c.Room.Unregister <- c
+		c.Conn.Close()
+		close(c.Send)
+	})
 }
 
 func (c *Client) read() {
@@ -70,9 +70,10 @@ func (c *Client) read() {
 			c.Room.Decks[c.Username] = deck
 			c.Room.mu.Unlock()
 			payload := map[string]interface{}{
-				"type":  "USER_JOINED",
-				"users": c.Room.GetUsernames(),
-				"decks": c.Room.Decks,
+				"type":      "USER_JOINED",
+				"users":     c.Room.GetUsernames(),
+				"decks":     c.Room.Decks,
+				"positions": c.Room.PlayerPositions,
 			}
 			joinedData, _ := json.Marshal(payload)
 			c.Room.BroadcastSafe(joinedData)
