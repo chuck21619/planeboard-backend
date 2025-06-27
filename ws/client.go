@@ -52,6 +52,7 @@ func (c *Client) read() {
 			rawDeckJSON, err := FetchDeckJSON(msg.DeckURL)
 			if err != nil {
 				log.Printf("error fetching deck: %v", err)
+				c.sendError("Invalid deck URL")
 				return
 			}
 			parsedCards, err := ParseDeck(rawDeckJSON)
@@ -142,6 +143,21 @@ func (c *Client) write() {
 			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
+		}
+	}
+}
+
+func (c *Client) sendError(reason string) {
+	msg := map[string]string{
+		"type":   "ERROR",
+		"reason": reason,
+	}
+	if data, err := json.Marshal(msg); err == nil {
+		select {
+		case c.Send <- data:
+			time.Sleep(100 * time.Millisecond)
+		default:
+			log.Printf("unable to send error to client: channel blocked")
 		}
 	}
 }

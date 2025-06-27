@@ -105,7 +105,7 @@ func (r *Room) Run() {
 					"positions": r.PlayerPositions,
 				}
 				data, _ := json.Marshal(payload)
-				r.mu.Unlock() // unlock before broadcasting
+				r.mu.Unlock()
 				r.BroadcastSafe(data)
 			} else {
 				r.mu.Unlock()
