@@ -70,17 +70,17 @@ func (c *Client) read() {
 			yOffset := 175.0
 			switch pos {
 			case "topLeft":
-				x = -xOffset-deckWidth/2
-				y = -yOffset-deckHeight/2
+				x = -xOffset - deckWidth/2
+				y = -yOffset - deckHeight/2
 			case "topRight":
-				x = xOffset-deckWidth/2
-				y = -yOffset-deckHeight/2
+				x = xOffset - deckWidth/2
+				y = -yOffset - deckHeight/2
 			case "bottomLeft":
-				x = -xOffset-deckWidth/2
-				y = yOffset-deckHeight/2
+				x = -xOffset - deckWidth/2
+				y = yOffset - deckHeight/2
 			case "bottomRight":
-				x = xOffset-deckWidth/2
-				y = yOffset-deckHeight/2
+				x = xOffset - deckWidth/2
+				y = yOffset - deckHeight/2
 			default:
 				x, y = 0, 0
 			}
@@ -100,6 +100,25 @@ func (c *Client) read() {
 			}
 			joinedData, _ := json.Marshal(payload)
 			c.Room.BroadcastSafe(joinedData)
+		case "DRAW_CARD":
+			deck, ok := c.Room.Decks[c.Username]
+			if !ok || len(deck.Cards) == 0 {
+				return
+			}
+			card := deck.Cards[0]
+			deck.Cards = deck.Cards[1:]
+			msg := map[string]interface{}{
+				"type": "CARD_DRAWN",
+				"card": card,
+			}
+			data, _ := json.Marshal(msg)
+			c.Send <- data
+			update := map[string]interface{}{
+				"type":   "PLAYER_DREW_CARD",
+				"player": c.Username,
+			}
+			broadcast, _ := json.Marshal(update)
+			c.Room.BroadcastSafe(broadcast)
 
 		case "MOVE_CARD":
 			c.Room.mu.Lock()
@@ -134,14 +153,19 @@ func (c *Client) write() {
 		select {
 		case msg, ok := <-c.Send:
 			if !ok {
+				log.Printf("Send channel closed, exiting write goroutine for user %s", c.Username)
 				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 			if err := c.Conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+				log.Printf("Error writing to websocket for user %s: %v", c.Username, err)
 				return
+			} else {
+				log.Printf("Sent message to user %s", c.Username)
 			}
 		case <-ticker.C:
 			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Printf("Ping error for user %s: %v", c.Username, err)
 				return
 			}
 		}

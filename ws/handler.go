@@ -31,7 +31,7 @@ func ServeWebSocket(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	room := hub.GetOrCreateRoom(roomID)
 	client := &Client{
 		Conn:     conn,
-		Send:     make(chan []byte),
+		Send:     make(chan []byte, 16),
 		Room:     room,
 		Username: username,
 	}
