@@ -19,6 +19,7 @@ type Room struct {
 	DeckURLs        map[string]string
 	Decks           map[string]*Deck
 	PlayerPositions map[string]string
+	HandSizes       map[string]int
 }
 
 func NewRoom(id string) *Room {
@@ -31,8 +32,9 @@ func NewRoom(id string) *Room {
 		Cards: map[string]*BoardCard{
 			"card1": {ID: "card1", X: 100, Y: 100},
 		},
-		DeckURLs: make(map[string]string),
-		Decks:    make(map[string]*Deck),
+		DeckURLs:  make(map[string]string),
+		Decks:     make(map[string]*Deck),
+		HandSizes: make(map[string]int),
 	}
 }
 
@@ -76,12 +78,14 @@ func (r *Room) Run() {
 				r.PlayerPositions = make(map[string]string)
 			}
 			r.PlayerPositions[client.Username] = defaultPositions[len(r.PlayerPositions)]
+			r.HandSizes[client.Username] = 0
 			payload := map[string]interface{}{
 				"type":      "BOARD_STATE",
 				"cards":     cards,
 				"decks":     decks,
 				"users":     r.GetUsernames(),
 				"positions": r.PlayerPositions,
+				"handSizes": r.HandSizes,
 			}
 			data, _ := json.Marshal(payload)
 			client.Send <- data
@@ -99,6 +103,7 @@ func (r *Room) Run() {
 				delete(r.Decks, client.Username)
 				delete(r.DeckURLs, client.Username)
 				delete(r.PlayerPositions, client.Username)
+				delete(r.HandSizes, client.Username)
 				payload := map[string]interface{}{
 					"type":      "USER_LEFT",
 					"user":      client.Username,

@@ -107,6 +107,7 @@ func (c *Client) read() {
 			}
 			card := deck.Cards[0]
 			deck.Cards = deck.Cards[1:]
+			c.Room.HandSizes[c.Username] += 1
 			msg := map[string]interface{}{
 				"type": "CARD_DRAWN",
 				"card": card,
@@ -114,8 +115,9 @@ func (c *Client) read() {
 			data, _ := json.Marshal(msg)
 			c.Send <- data
 			update := map[string]interface{}{
-				"type":   "PLAYER_DREW_CARD",
-				"player": c.Username,
+				"type":     "PLAYER_DREW_CARD",
+				"player":   c.Username,
+				"handSize": c.Room.HandSizes[c.Username],
 			}
 			broadcast, _ := json.Marshal(update)
 			c.Room.BroadcastSafe(broadcast)
