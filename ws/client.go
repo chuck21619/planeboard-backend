@@ -62,10 +62,32 @@ func (c *Client) read() {
 			}
 			c.Room.mu.Lock()
 			c.Room.DeckURLs[c.Username] = msg.DeckURL
+			pos := c.Room.PlayerPositions[c.Username]
+			var x, y float64
+			deckWidth := 60.0
+			deckHeight := 90.0
+			xOffset := 50.0
+			yOffset := 175.0
+			switch pos {
+			case "topLeft":
+				x = -xOffset-deckWidth/2
+				y = -yOffset-deckHeight/2
+			case "topRight":
+				x = xOffset-deckWidth/2
+				y = -yOffset-deckHeight/2
+			case "bottomLeft":
+				x = -xOffset-deckWidth/2
+				y = yOffset-deckHeight/2
+			case "bottomRight":
+				x = xOffset-deckWidth/2
+				y = yOffset-deckHeight/2
+			default:
+				x, y = 0, 0
+			}
 			deck := &Deck{
 				ID:    c.Username,
-				X:     100,
-				Y:     100,
+				X:     x,
+				Y:     y,
 				Cards: parsedCards,
 			}
 			c.Room.Decks[c.Username] = deck
@@ -97,27 +119,6 @@ func (c *Client) read() {
 			}
 			updated, _ := json.Marshal(wrapped)
 			c.Room.Broadcast <- updated
-
-		case "MOVE_DECK":
-			c.Room.mu.Lock()
-			deck, exists := c.Room.Decks[msg.ID]
-			if !exists {
-				c.Room.mu.Unlock()
-				return
-			}
-			deck.X = msg.X
-			deck.Y = msg.Y
-			c.Room.mu.Unlock()
-
-			payload := map[string]interface{}{
-				"type": "MOVE_DECK",
-				"id":   deck.ID,
-				"x":    deck.X,
-				"y":    deck.Y,
-			}
-			data, _ := json.Marshal(payload)
-			c.Room.Broadcast <- data
-
 		}
 	}
 }
