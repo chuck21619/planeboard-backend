@@ -121,7 +121,27 @@ func (c *Client) read() {
 			}
 			broadcast, _ := json.Marshal(update)
 			c.Room.BroadcastSafe(broadcast)
-
+		case "CARD_PLAYED":
+			c.Room.mu.Lock()
+			card := &BoardCard{
+				ID:       msg.Card.ID,
+				Name:     msg.Card.Name,
+				ImageURL: msg.Card.ImageURL,
+				X:        msg.Card.X,
+				Y:        msg.Card.Y,
+			}
+			c.Room.Cards[card.ID] = card
+			c.Room.HandSizes[c.Username] -= 1
+			handSize := c.Room.HandSizes[c.Username]
+			c.Room.mu.Unlock()
+			broadcast := map[string]interface{}{
+				"type":     "CARD_PLAYED",
+				"card":     card,
+				"player":   c.Username,
+				"handSize": handSize,
+			}
+			data, _ := json.Marshal(broadcast)
+			c.Room.BroadcastExcept(data, c)
 		case "MOVE_CARD":
 			c.Room.mu.Lock()
 			card, exists := c.Room.Cards[msg.ID]

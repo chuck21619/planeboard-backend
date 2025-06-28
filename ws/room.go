@@ -29,12 +29,10 @@ func NewRoom(id string) *Room {
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
 		Broadcast:  make(chan []byte),
-		Cards: map[string]*BoardCard{
-			"card1": {ID: "card1", X: 100, Y: 100},
-		},
-		DeckURLs:  make(map[string]string),
-		Decks:     make(map[string]*Deck),
-		HandSizes: make(map[string]int),
+		Cards:      make(map[string]*BoardCard),
+		DeckURLs:   make(map[string]string),
+		Decks:      make(map[string]*Deck),
+		HandSizes:  make(map[string]int),
 	}
 }
 
@@ -47,9 +45,24 @@ func (r *Room) BroadcastSafe(msg []byte) {
 		case client.Send <- msg:
 			// message sent successfully
 		default:
-			// send channel blocked or closed — close client safely
 			log.Printf("dropping unresponsive client: %s", client.Username)
 			client.close()
+		}
+	}
+}
+
+func (r *Room) BroadcastExcept(msg []byte, exclude *Client) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for client := range r.Clients {
+		if client != exclude {
+			select {
+			case client.Send <- msg:
+				// message sent successfully
+			default:
+				log.Printf("dropping unresponsive client: %s", client.Username)
+				client.close()
+			}
 		}
 	}
 }
