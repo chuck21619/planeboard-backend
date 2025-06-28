@@ -1,6 +1,8 @@
 package ws
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -69,8 +71,14 @@ func ParseDeck(data []byte) ([]Card, error) {
 		)
 
 		for i := 0; i < c.Quantity; i++ {
+			suffix := make([]byte, 4)
+			_, err := rand.Read(suffix)
+			if err != nil {
+				return nil, fmt.Errorf("error generating card ID: %w", err)
+			}
+			uniqueID := fmt.Sprintf("%d-%s", c.Card.ID, hex.EncodeToString(suffix))
 			result = append(result, Card{
-				ID:       fmt.Sprint(c.Card.ID),
+				ID:       uniqueID,
 				Name:     c.Card.OracleCard.Name,
 				ImageURL: imageURL,
 			})
