@@ -129,6 +129,7 @@ func (c *Client) read() {
 				ImageURL: msg.Card.ImageURL,
 				X:        msg.Card.X,
 				Y:        msg.Card.Y,
+				Owner: c.Username,
 			}
 			c.Room.Cards[card.ID] = card
 			c.Room.HandSizes[c.Username] -= 1
@@ -159,7 +160,7 @@ func (c *Client) read() {
 				"y":    card.Y,
 			}
 			updated, _ := json.Marshal(wrapped)
-			c.Room.Broadcast <- updated
+			c.Room.BroadcastExcept(updated, c)
 		case "CARD_RETURNED":
 			c.Room.mu.Lock()
 			delete(c.Room.Cards, msg.ID)

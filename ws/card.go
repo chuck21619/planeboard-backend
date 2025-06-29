@@ -6,6 +6,7 @@ type BoardCard struct {
 	ImageURL string  `json:"imageUrl"`
 	X        float64 `json:"x"`
 	Y        float64 `json:"y"`
+	Owner    string  `json:"owner"`
 }
 
 type Card struct {

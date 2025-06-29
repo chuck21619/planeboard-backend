@@ -117,6 +117,11 @@ func (r *Room) Run() {
 				delete(r.DeckURLs, client.Username)
 				delete(r.PlayerPositions, client.Username)
 				delete(r.HandSizes, client.Username)
+				for id, card := range r.Cards {
+					if card.Owner == client.Username {
+						delete(r.Cards, id)
+					}
+				}
 				payload := map[string]interface{}{
 					"type":      "USER_LEFT",
 					"user":      client.Username,
