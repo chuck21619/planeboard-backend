@@ -160,6 +160,24 @@ func (c *Client) read() {
 			}
 			updated, _ := json.Marshal(wrapped)
 			c.Room.Broadcast <- updated
+		case "CARD_RETURNED":
+			c.Room.mu.Lock()
+			delete(c.Room.Cards, msg.ID)
+			c.Room.HandSizes[msg.Username] += 1
+			handSize := c.Room.HandSizes[msg.Username]
+			c.Room.mu.Unlock()
+
+			broadcast := map[string]interface{}{
+				"type":     "CARD_RETURNED",
+				"id":       msg.ID,
+				"player":   msg.Username,
+				"handSize": handSize,
+			}
+			data, err := json.Marshal(broadcast)
+			if err == nil {
+				c.Room.BroadcastExcept(data, c)
+			}
+
 		}
 	}
 }
