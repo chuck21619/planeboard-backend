@@ -129,7 +129,7 @@ func (c *Client) read() {
 				ImageURL: msg.Card.ImageURL,
 				X:        msg.Card.X,
 				Y:        msg.Card.Y,
-				Owner: c.Username,
+				Owner:    c.Username,
 			}
 			c.Room.Cards[card.ID] = card
 			c.Room.HandSizes[c.Username] -= 1
@@ -143,6 +143,23 @@ func (c *Client) read() {
 			}
 			data, _ := json.Marshal(broadcast)
 			c.Room.BroadcastExcept(data, c)
+		case "TAP_CARD":
+			c.Room.mu.Lock()
+			card, exists := c.Room.Cards[msg.ID]
+			if !exists {
+				card = &BoardCard{ID: msg.ID}
+				c.Room.Cards[msg.ID] = card
+			}
+			card.Tapped = msg.Tapped
+			c.Room.mu.Unlock()
+			wrapped := map[string]interface{}{
+				"type":   "CARD_TAPPED",
+				"id":     card.ID,
+				"tapped": card.Tapped,
+			}
+			updated, _ := json.Marshal(wrapped)
+			c.Room.BroadcastExcept(updated, c)
+
 		case "MOVE_CARD":
 			c.Room.mu.Lock()
 			card, exists := c.Room.Cards[msg.ID]

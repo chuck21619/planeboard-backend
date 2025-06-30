@@ -7,6 +7,7 @@ type BoardCard struct {
 	X        float64 `json:"x"`
 	Y        float64 `json:"y"`
 	Owner    string  `json:"owner"`
+	Tapped   bool    `json:"tapped"`
 }
 
 type Card struct {
