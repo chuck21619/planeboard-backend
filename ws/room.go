@@ -83,10 +83,6 @@ func (r *Room) Run() {
 				Y:  100,
 			}
 			client.Room.Decks[client.Username] = deck
-			decks := make([]*Deck, 0, len(r.Decks))
-			for _, deck := range r.Decks {
-				decks = append(decks, deck)
-			}
 			if r.PlayerPositions == nil {
 				r.PlayerPositions = make(map[string]string)
 			}
@@ -114,7 +110,7 @@ func (r *Room) Run() {
 			payload := map[string]interface{}{
 				"type":      "BOARD_STATE",
 				"cards":     cards,
-				"decks":     decks,
+				"decks":     client.Room.Decks,
 				"users":     r.GetUsernames(),
 				"positions": r.PlayerPositions,
 				"handSizes": r.HandSizes,

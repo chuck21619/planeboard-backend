@@ -52,7 +52,7 @@ func (c *Client) read() {
 			rawDeckJSON, err := FetchDeckJSON(msg.DeckURL)
 			if err != nil {
 				log.Printf("error fetching deck: %v", err)
-				c.sendError("Invalid deck URL")
+				c.sendError("Error fetching deck")
 				return
 			}
 			parsedCards, parsedCommanders, err := ParseDeck(rawDeckJSON)
@@ -131,22 +131,15 @@ func (c *Client) read() {
 			if !ok || len(deck.Cards) == 0 {
 				return
 			}
-			card := deck.Cards[0]
 			deck.Cards = deck.Cards[1:]
 			c.Room.HandSizes[c.Username] += 1
-			msg := map[string]interface{}{
-				"type": "CARD_DRAWN",
-				"card": card,
-			}
-			data, _ := json.Marshal(msg)
-			c.Send <- data
 			update := map[string]interface{}{
 				"type":     "PLAYER_DREW_CARD",
 				"player":   c.Username,
 				"handSize": c.Room.HandSizes[c.Username],
 			}
 			broadcast, _ := json.Marshal(update)
-			c.Room.BroadcastSafe(broadcast)
+			c.Room.BroadcastExcept(broadcast, c)
 		case "CARD_PLAYED_FROM_HAND":
 			c.Room.mu.Lock()
 			card := &BoardCard{
@@ -180,6 +173,15 @@ func (c *Client) read() {
 				Owner:    c.Username,
 			}
 			c.Room.Cards[card.ID] = card
+			if deck, ok := c.Room.Decks[c.Username]; ok {
+				filteredCards := deck.Cards[:0]
+				for _, dcard := range deck.Cards {
+					if dcard.ID != card.ID {
+						filteredCards = append(filteredCards, dcard)
+					}
+				}
+				deck.Cards = filteredCards
+			}
 			c.Room.mu.Unlock()
 			broadcast := map[string]interface{}{
 				"type":   "CARD_PLAYED_FROM_LIBRARY",
@@ -223,6 +225,30 @@ func (c *Client) read() {
 			}
 			updated, _ := json.Marshal(wrapped)
 			c.Room.BroadcastExcept(updated, c)
+		case "TUTOR_TO_HAND":
+			c.Room.mu.Lock()
+			c.Room.HandSizes[msg.Username] += 1
+			handSize := c.Room.HandSizes[msg.Username]
+			if deck, ok := c.Room.Decks[c.Username]; ok {
+				filteredCards := deck.Cards[:0]
+				for _, dcard := range deck.Cards {
+					if dcard.ID != msg.ID {
+						filteredCards = append(filteredCards, dcard)
+					}
+				}
+				deck.Cards = filteredCards
+			}
+			c.Room.mu.Unlock()
+			broadcast := map[string]interface{}{
+				"type":     "TUTORED_TO_HAND",
+				"id":       msg.ID,
+				"player":   msg.Username,
+				"handSize": handSize,
+			}
+			data, err := json.Marshal(broadcast)
+			if err == nil {
+				c.Room.BroadcastExcept(data, c)
+			}
 		case "RETURN_TO_HAND":
 			c.Room.mu.Lock()
 			delete(c.Room.Cards, msg.ID)
@@ -240,7 +266,6 @@ func (c *Client) read() {
 			if err == nil {
 				c.Room.BroadcastExcept(data, c)
 			}
-
 		}
 	}
 }
