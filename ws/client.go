@@ -147,7 +147,7 @@ func (c *Client) read() {
 			}
 			broadcast, _ := json.Marshal(update)
 			c.Room.BroadcastSafe(broadcast)
-		case "CARD_PLAYED":
+		case "CARD_PLAYED_FROM_HAND":
 			c.Room.mu.Lock()
 			card := &BoardCard{
 				ID:       msg.Card.ID,
@@ -162,10 +162,29 @@ func (c *Client) read() {
 			handSize := c.Room.HandSizes[c.Username]
 			c.Room.mu.Unlock()
 			broadcast := map[string]interface{}{
-				"type":     "CARD_PLAYED",
+				"type":     "CARD_PLAYED_FROM_HAND",
 				"card":     card,
 				"player":   c.Username,
 				"handSize": handSize,
+			}
+			data, _ := json.Marshal(broadcast)
+			c.Room.BroadcastExcept(data, c)
+		case "CARD_PLAYED_FROM_LIBRARY":
+			c.Room.mu.Lock()
+			card := &BoardCard{
+				ID:       msg.Card.ID,
+				Name:     msg.Card.Name,
+				ImageURL: msg.Card.ImageURL,
+				X:        msg.Card.X,
+				Y:        msg.Card.Y,
+				Owner:    c.Username,
+			}
+			c.Room.Cards[card.ID] = card
+			c.Room.mu.Unlock()
+			broadcast := map[string]interface{}{
+				"type":   "CARD_PLAYED_FROM_LIBRARY",
+				"card":   card,
+				"player": c.Username,
 			}
 			data, _ := json.Marshal(broadcast)
 			c.Room.BroadcastExcept(data, c)
@@ -204,7 +223,7 @@ func (c *Client) read() {
 			}
 			updated, _ := json.Marshal(wrapped)
 			c.Room.BroadcastExcept(updated, c)
-		case "CARD_RETURNED":
+		case "RETURN_TO_HAND":
 			c.Room.mu.Lock()
 			delete(c.Room.Cards, msg.ID)
 			c.Room.HandSizes[msg.Username] += 1
@@ -212,7 +231,7 @@ func (c *Client) read() {
 			c.Room.mu.Unlock()
 
 			broadcast := map[string]interface{}{
-				"type":     "CARD_RETURNED",
+				"type":     "RETURN_TO_HAND",
 				"id":       msg.ID,
 				"player":   msg.Username,
 				"handSize": handSize,
