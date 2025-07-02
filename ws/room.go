@@ -90,7 +90,26 @@ func (r *Room) Run() {
 			if r.PlayerPositions == nil {
 				r.PlayerPositions = make(map[string]string)
 			}
-			r.PlayerPositions[client.Username] = defaultPositions[len(r.PlayerPositions)]
+			taken := make(map[string]bool)
+			for _, pos := range r.PlayerPositions {
+				taken[pos] = true
+			}
+
+			var assigned string
+			for _, pos := range defaultPositions {
+				if !taken[pos] {
+					assigned = pos
+					break
+				}
+
+			}
+			if assigned == "" {
+				// fallback in case all positions are taken
+				assigned = "unassigned"
+			}
+
+			r.PlayerPositions[client.Username] = assigned
+
 			r.HandSizes[client.Username] = 0
 			payload := map[string]interface{}{
 				"type":      "BOARD_STATE",
