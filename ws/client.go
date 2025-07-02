@@ -55,7 +55,7 @@ func (c *Client) read() {
 				c.sendError("Invalid deck URL")
 				return
 			}
-			parsedCards, err := ParseDeck(rawDeckJSON)
+			parsedCards, parsedCommanders, err := ParseDeck(rawDeckJSON)
 			if err != nil {
 				log.Printf("error parsing deck: %v", err)
 				return
@@ -85,18 +85,44 @@ func (c *Client) read() {
 				x, y = 0, 0
 			}
 			deck := &Deck{
-				ID:    c.Username,
-				X:     x,
-				Y:     y,
-				Cards: parsedCards,
+				ID:         c.Username,
+				X:          x,
+				Y:          y,
+				Cards:      parsedCards,
+				Commanders: parsedCommanders,
 			}
 			c.Room.Decks[c.Username] = deck
+			commanderYOffset := 100.0
+			if pos == "bottomLeft" || pos == "bottomRight" {
+				commanderYOffset = -100.0
+			}
+			commanderXOffsetSign := -1.0
+			switch pos {
+			case "topRight", "bottomRight":
+				commanderXOffsetSign = 1.0
+			}
+			var commanderBoardCards []*BoardCard
+			for i, commander := range parsedCommanders {
+				card := &BoardCard{
+					ID:       commander.ID,
+					Name:     commander.Name,
+					ImageURL: commander.ImageURL,
+					X:        x + commanderXOffsetSign*float64(i)*70,
+					Y:        y + commanderYOffset,
+					Owner:    c.Username,
+					Tapped:   false,
+				}
+				c.Room.Cards[commander.ID] = card
+				commanderBoardCards = append(commanderBoardCards, card)
+			}
+
 			c.Room.mu.Unlock()
 			payload := map[string]interface{}{
-				"type":      "USER_JOINED",
-				"users":     c.Room.GetUsernames(),
-				"decks":     c.Room.Decks,
-				"positions": c.Room.PlayerPositions,
+				"type":       "USER_JOINED",
+				"users":      c.Room.GetUsernames(),
+				"decks":      c.Room.Decks,
+				"positions":  c.Room.PlayerPositions,
+				"commanders": commanderBoardCards,
 			}
 			joinedData, _ := json.Marshal(payload)
 			c.Room.BroadcastSafe(joinedData)

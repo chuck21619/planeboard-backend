@@ -40,12 +40,13 @@ func FetchDeckJSON(deckURL string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func ParseDeck(data []byte) ([]Card, error) {
+func ParseDeck(data []byte) ([]Card, []Card, error) {
 	var parsed struct {
 		Cards []struct {
-			ID       int64 `json:"id"`
-			Quantity int   `json:"quantity"`
-			Card     struct {
+			ID         int64    `json:"id"`
+			Quantity   int      `json:"quantity"`
+			Categories []string `json:"categories"`
+			Card       struct {
 				ID              int64  `json:"id"`
 				CollectorNumber string `json:"collectorNumber"`
 				Edition         struct {
@@ -59,10 +60,12 @@ func ParseDeck(data []byte) ([]Card, error) {
 	}
 
 	if err := json.Unmarshal(data, &parsed); err != nil {
-		return nil, fmt.Errorf("error unmarshaling deck JSON: %w", err)
+		return nil, nil, fmt.Errorf("error unmarshaling deck JSON: %w", err)
 	}
 
-	var result []Card
+	var allCards []Card
+	var commanderCards []Card
+
 	for _, c := range parsed.Cards {
 		imageURL := fmt.Sprintf(
 			"https://api.scryfall.com/cards/%s/%s?format=image&version=normal",
@@ -70,20 +73,33 @@ func ParseDeck(data []byte) ([]Card, error) {
 			c.Card.CollectorNumber,
 		)
 
+		isCommander := false
+		for _, category := range c.Categories {
+			if category == "Commander" {
+				isCommander = true
+				break
+			}
+		}
+
 		for i := 0; i < c.Quantity; i++ {
 			suffix := make([]byte, 4)
 			_, err := rand.Read(suffix)
 			if err != nil {
-				return nil, fmt.Errorf("error generating card ID: %w", err)
+				return nil, nil, fmt.Errorf("error generating card ID: %w", err)
 			}
 			uniqueID := fmt.Sprintf("%d-%s", c.Card.ID, hex.EncodeToString(suffix))
-			result = append(result, Card{
+			card := Card{
 				ID:       uniqueID,
 				Name:     c.Card.OracleCard.Name,
 				ImageURL: imageURL,
-			})
+			}
+			if isCommander {
+				commanderCards = append(commanderCards, card)
+			} else {
+				allCards = append(allCards, card)
+			}
 		}
 	}
 
-	return result, nil
+	return allCards, commanderCards, nil
 }
