@@ -1,12 +1,13 @@
 package ws
 
 import (
-	"crypto/rand"
+	crand "crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	mrand "math/rand"
 	"net/http"
 	"strings"
 )
@@ -83,7 +84,7 @@ func ParseDeck(data []byte) ([]Card, []Card, error) {
 
 		for i := 0; i < c.Quantity; i++ {
 			suffix := make([]byte, 4)
-			_, err := rand.Read(suffix)
+			_, err := crand.Read(suffix)
 			if err != nil {
 				return nil, nil, fmt.Errorf("error generating card ID: %w", err)
 			}
@@ -100,6 +101,10 @@ func ParseDeck(data []byte) ([]Card, []Card, error) {
 			}
 		}
 	}
+
+	mrand.Shuffle(len(allCards), func(i, j int) {
+		allCards[i], allCards[j] = allCards[j], allCards[i]
+	})
 
 	return allCards, commanderCards, nil
 }
