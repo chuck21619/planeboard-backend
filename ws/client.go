@@ -170,10 +170,10 @@ func (c *Client) read() {
 				ImageURL: msg.Card.ImageURL,
 				X:        msg.Card.X,
 				Y:        msg.Card.Y,
-				Owner:    c.Username,
+				Owner:    msg.Username,
 			}
 			c.Room.Cards[card.ID] = card
-			if deck, ok := c.Room.Decks[c.Username]; ok {
+			if deck, ok := c.Room.Decks[msg.Username]; ok {
 				filteredCards := deck.Cards[:0]
 				for _, dcard := range deck.Cards {
 					if dcard.ID != card.ID {
@@ -186,7 +186,7 @@ func (c *Client) read() {
 			broadcast := map[string]interface{}{
 				"type":   "CARD_PLAYED_FROM_LIBRARY",
 				"card":   card,
-				"player": c.Username,
+				"player": msg.Username,
 			}
 			data, _ := json.Marshal(broadcast)
 			c.Room.BroadcastExcept(data, c)
@@ -229,7 +229,7 @@ func (c *Client) read() {
 			c.Room.mu.Lock()
 			c.Room.HandSizes[msg.Username] += 1
 			handSize := c.Room.HandSizes[msg.Username]
-			if deck, ok := c.Room.Decks[c.Username]; ok {
+			if deck, ok := c.Room.Decks[msg.Username]; ok {
 				filteredCards := deck.Cards[:0]
 				for _, dcard := range deck.Cards {
 					if dcard.ID != msg.ID {
