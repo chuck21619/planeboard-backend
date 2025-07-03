@@ -104,13 +104,11 @@ func (c *Client) read() {
 			var commanderBoardCards []*BoardCard
 			for i, commander := range parsedCommanders {
 				card := &BoardCard{
-					ID:       commander.ID,
-					Name:     commander.Name,
-					ImageURL: commander.ImageURL,
-					X:        x + commanderXOffsetSign*float64(i)*70,
-					Y:        y + commanderYOffset,
-					Owner:    c.Username,
-					Tapped:   false,
+					Card:   commander,
+					X:      x + commanderXOffsetSign*float64(i)*70,
+					Y:      y + commanderYOffset,
+					Owner:  c.Username,
+					Tapped: false,
 				}
 				c.Room.Cards[commander.ID] = card
 				commanderBoardCards = append(commanderBoardCards, card)
@@ -143,12 +141,17 @@ func (c *Client) read() {
 		case "CARD_PLAYED_FROM_HAND":
 			c.Room.mu.Lock()
 			card := &BoardCard{
-				ID:       msg.Card.ID,
-				Name:     msg.Card.Name,
-				ImageURL: msg.Card.ImageURL,
-				X:        msg.Card.X,
-				Y:        msg.Card.Y,
-				Owner:    c.Username,
+				Card: Card{
+					ID:        msg.Card.ID,
+					Name:      msg.Card.Name,
+					ImageURL:  msg.Card.ImageURL,
+					UID:       msg.Card.UID,
+					HasTokens: msg.Card.HasTokens,
+				},
+				X:      msg.Card.X,
+				Y:      msg.Card.Y,
+				Owner:  c.Username,
+				Tapped: false,
 			}
 			c.Room.Cards[card.ID] = card
 			c.Room.HandSizes[c.Username] -= 1
@@ -165,12 +168,17 @@ func (c *Client) read() {
 		case "CARD_PLAYED_FROM_LIBRARY":
 			c.Room.mu.Lock()
 			card := &BoardCard{
-				ID:       msg.Card.ID,
-				Name:     msg.Card.Name,
-				ImageURL: msg.Card.ImageURL,
-				X:        msg.Card.X,
-				Y:        msg.Card.Y,
-				Owner:    msg.Username,
+				Card: Card{
+					ID:        msg.Card.ID,
+					Name:      msg.Card.Name,
+					ImageURL:  msg.Card.ImageURL,
+					UID:       msg.Card.UID,
+					HasTokens: msg.Card.HasTokens,
+				},
+				X:      msg.Card.X,
+				Y:      msg.Card.Y,
+				Owner:  c.Username,
+				Tapped: false,
 			}
 			c.Room.Cards[card.ID] = card
 			if deck, ok := c.Room.Decks[msg.Username]; ok {
@@ -190,11 +198,16 @@ func (c *Client) read() {
 			}
 			data, _ := json.Marshal(broadcast)
 			c.Room.BroadcastExcept(data, c)
+
 		case "TAP_CARD":
 			c.Room.mu.Lock()
 			card, exists := c.Room.Cards[msg.ID]
 			if !exists {
-				card = &BoardCard{ID: msg.ID}
+				card = &BoardCard{
+					Card: Card{
+						ID: msg.ID,
+					},
+				}
 				c.Room.Cards[msg.ID] = card
 			}
 			card.Tapped = msg.Tapped
@@ -211,7 +224,11 @@ func (c *Client) read() {
 			c.Room.mu.Lock()
 			card, exists := c.Room.Cards[msg.ID]
 			if !exists {
-				card = &BoardCard{ID: msg.ID}
+				card = &BoardCard{
+					Card: Card{
+						ID: msg.ID,
+					},
+				}
 				c.Room.Cards[msg.ID] = card
 			}
 			card.X = msg.X

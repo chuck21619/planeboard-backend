@@ -10,11 +10,7 @@ import (
 	mrand "math/rand"
 	"net/http"
 	"strings"
-	"time"
 )
-
-// Import your logging client getter here
-// Make sure to add the logging client code in the same package (ws) or import it if external
 
 func WebpageURLToAPIURL(webpageURL string) (string, error) {
 	parts := strings.Split(webpageURL, "/")
@@ -89,16 +85,6 @@ func ParseDeck(data []byte) ([]Card, []Card, error) {
 			}
 		}
 
-		var tokens []Card
-		if len(c.Card.OracleCard.Tokens) > 0 {
-			t, err := FetchTokensForCard(c.Card.UID)
-			if err != nil {
-				fmt.Printf("Failed to fetch tokens for card %s: %v\n", c.Card.OracleCard.Name, err)
-			} else {
-				tokens = t
-			}
-		}
-
 		for i := 0; i < c.Quantity; i++ {
 			suffix := make([]byte, 4)
 			_, err := crand.Read(suffix)
@@ -107,10 +93,11 @@ func ParseDeck(data []byte) ([]Card, []Card, error) {
 			}
 			uniqueID := fmt.Sprintf("%d-%s", c.Card.ID, hex.EncodeToString(suffix))
 			card := Card{
-				ID:       uniqueID,
-				Name:     c.Card.OracleCard.Name,
-				ImageURL: imageURL,
-				Tokens:   tokens,
+				ID:        uniqueID,
+				Name:      c.Card.OracleCard.Name,
+				ImageURL:  imageURL,
+				UID:       c.Card.UID,
+				HasTokens: len(c.Card.OracleCard.Tokens) > 0,
 			}
 			if isCommander {
 				commanderCards = append(commanderCards, card)
@@ -125,59 +112,4 @@ func ParseDeck(data []byte) ([]Card, []Card, error) {
 	})
 
 	return allCards, commanderCards, nil
-}
-
-func FetchTokensForCard(cardUID string) ([]Card, error) {
-	client := GetLoggingClient()
-	scryfallURL := fmt.Sprintf("https://api.scryfall.com/cards/%s", cardUID)
-	resp, err := client.Get(scryfallURL)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var cardData struct {
-		AllParts []struct {
-			ID        string `json:"id"`
-			Component string `json:"component"`
-			Name      string `json:"name"`
-			URI       string `json:"uri"`
-		} `json:"all_parts"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&cardData); err != nil {
-		return nil, err
-	}
-
-	var tokens []Card
-	for _, part := range cardData.AllParts {
-		if part.Component != "token" {
-			continue
-		}
-
-		time.Sleep(100 * time.Millisecond)
-		tokenResp, err := client.Get(part.URI)
-		if err != nil {
-			continue
-		}
-		defer tokenResp.Body.Close()
-
-		var tokenData struct {
-			ID        string `json:"id"`
-			Name      string `json:"name"`
-			ImageURIs struct {
-				Normal string `json:"normal"`
-			} `json:"image_uris"`
-		}
-		if err := json.NewDecoder(tokenResp.Body).Decode(&tokenData); err != nil {
-			continue
-		}
-
-		tokens = append(tokens, Card{
-			ID:       tokenData.ID,
-			Name:     tokenData.Name,
-			ImageURL: tokenData.ImageURIs.Normal,
-		})
-	}
-
-	return tokens, nil
 }

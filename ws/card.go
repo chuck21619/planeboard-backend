@@ -1,18 +1,17 @@
 package ws
 
-type BoardCard struct {
-	ID       string  `json:"id"`
-	Name     string  `json:"name"`
-	ImageURL string  `json:"imageUrl"`
-	X        float64 `json:"x"`
-	Y        float64 `json:"y"`
-	Owner    string  `json:"owner"`
-	Tapped   bool    `json:"tapped"`
+type Card struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	ImageURL  string `json:"imageUrl"`
+	UID       string `json:"uid"`
+	HasTokens bool   `json:"hasTokens"`
 }
 
-type Card struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	ImageURL string `json:"imageUrl"`
-	Tokens   []Card `json:"tokens,omitempty"`
+type BoardCard struct {
+	Card
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	Owner  string  `json:"owner"`
+	Tapped bool    `json:"tapped"`
 }
