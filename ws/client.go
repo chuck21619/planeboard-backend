@@ -165,6 +165,31 @@ func (c *Client) read() {
 			}
 			data, _ := json.Marshal(broadcast)
 			c.Room.BroadcastExcept(data, c)
+			
+		case "SPAWN_TOKEN":
+			c.Room.mu.Lock()
+			token := &BoardCard{
+				Card: Card{
+					ID:        msg.Card.ID,
+					Name:      msg.Card.Name,
+					ImageURL:  msg.Card.ImageURL,
+					UID:       msg.Card.UID,
+					HasTokens: msg.Card.HasTokens,
+				},
+				X:      msg.Card.X,
+				Y:      msg.Card.Y,
+				Owner:  msg.Card.Owner,
+				Tapped: false,
+			}
+			c.Room.Cards[token.ID] = token
+			c.Room.mu.Unlock()
+			broadcast := map[string]interface{}{
+				"type":  "SPAWN_TOKEN",
+				"token": token,
+			}
+			data, _ := json.Marshal(broadcast)
+			c.Room.BroadcastExcept(data, c)
+
 		case "CARD_PLAYED_FROM_LIBRARY":
 			c.Room.mu.Lock()
 			card := &BoardCard{
