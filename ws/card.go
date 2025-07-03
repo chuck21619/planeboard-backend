@@ -14,4 +14,5 @@ type Card struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	ImageURL string `json:"imageUrl"`
+	Tokens   []Card `json:"tokens,omitempty"`
 }
