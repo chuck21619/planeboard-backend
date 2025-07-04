@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-var defaultPositions = []string{"topLeft", "topRight", "bottomLeft", "bottomRight"}
+var defaultPositions = []string{"bottomLeft", "topLeft", "bottomRight", "topRight"}
 
 type Room struct {
 	ID              string
