@@ -20,6 +20,7 @@ type Room struct {
 	Decks           map[string]*Deck
 	PlayerPositions map[string]string
 	HandSizes       map[string]int
+	LifeTotals      map[string]int
 }
 
 func NewRoom(id string) *Room {
@@ -33,6 +34,7 @@ func NewRoom(id string) *Room {
 		DeckURLs:   make(map[string]string),
 		Decks:      make(map[string]*Deck),
 		HandSizes:  make(map[string]int),
+		LifeTotals: make(map[string]int),
 	}
 }
 

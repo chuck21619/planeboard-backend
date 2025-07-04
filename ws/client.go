@@ -67,7 +67,7 @@ func (c *Client) read() {
 			deckWidth := 60.0
 			deckHeight := 90.0
 			xOffset := 50.0
-			yOffset := 175.0
+			yOffset := 225.0
 			switch pos {
 			case "topLeft":
 				x = -xOffset - deckWidth/2
@@ -113,7 +113,7 @@ func (c *Client) read() {
 				c.Room.Cards[commander.ID] = card
 				commanderBoardCards = append(commanderBoardCards, card)
 			}
-
+			c.Room.LifeTotals[c.Username] = 40
 			c.Room.mu.Unlock()
 			payload := map[string]interface{}{
 				"type":       "USER_JOINED",
@@ -121,9 +121,11 @@ func (c *Client) read() {
 				"decks":      c.Room.Decks,
 				"positions":  c.Room.PlayerPositions,
 				"commanders": commanderBoardCards,
+				"lifeTotals": c.Room.LifeTotals,
 			}
 			joinedData, _ := json.Marshal(payload)
 			c.Room.BroadcastSafe(joinedData)
+
 		case "DRAW_CARD":
 			deck, ok := c.Room.Decks[c.Username]
 			if !ok || len(deck.Cards) == 0 {
@@ -138,6 +140,7 @@ func (c *Client) read() {
 			}
 			broadcast, _ := json.Marshal(update)
 			c.Room.BroadcastExcept(broadcast, c)
+
 		case "CARD_PLAYED_FROM_HAND":
 			c.Room.mu.Lock()
 			card := &BoardCard{
@@ -165,7 +168,19 @@ func (c *Client) read() {
 			}
 			data, _ := json.Marshal(broadcast)
 			c.Room.BroadcastExcept(data, c)
-			
+
+		case "LIFE_TOTAL_CHANGE":
+			c.Room.mu.Lock()
+			c.Room.LifeTotals[msg.Username] = *msg.LifeTotal
+			c.Room.mu.Unlock()
+			broadcast := map[string]interface{}{
+				"type":      "LIFE_TOTAL_UPDATED",
+				"username":  msg.Username,
+				"lifeTotal": *msg.LifeTotal,
+			}
+			data, _ := json.Marshal(broadcast)
+			c.Room.BroadcastExcept(data, c)
+
 		case "SPAWN_TOKEN":
 			c.Room.mu.Lock()
 			token := &BoardCard{
