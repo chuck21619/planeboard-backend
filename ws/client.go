@@ -141,6 +141,37 @@ func (c *Client) read() {
 			broadcast, _ := json.Marshal(update)
 			c.Room.BroadcastExcept(broadcast, c)
 
+		case "PASS_TURN":
+			c.Room.mu.Lock()
+			posToPlayer := make(map[string]string)
+			for user, pos := range c.Room.PlayerPositions {
+				posToPlayer[pos] = user
+			}
+			currentPos := c.Room.PlayerPositions[c.Username]
+			currentIdx := -1
+			for i, pos := range defaultPositions {
+				if pos == currentPos {
+					currentIdx = i
+					break
+				}
+			}
+			for i := 1; i <= 4; i++ {
+				nextIdx := (currentIdx + i) % 4
+				nextPos := defaultPositions[nextIdx]
+				nextPlayer, exists := posToPlayer[nextPos]
+				if exists {
+					c.Room.Turn = nextPlayer
+					break
+				}
+			}
+			c.Room.mu.Unlock()
+			update := map[string]interface{}{
+				"type": "TURN_PASSED",
+				"turn": c.Room.Turn,
+			}
+			broadcast, _ := json.Marshal(update)
+			c.Room.BroadcastSafe(broadcast)
+
 		case "CARD_PLAYED_FROM_HAND":
 			c.Room.mu.Lock()
 			card := &BoardCard{

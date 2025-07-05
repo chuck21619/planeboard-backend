@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-var defaultPositions = []string{"bottomLeft", "topLeft", "bottomRight", "topRight"}
+var defaultPositions = []string{"bottomLeft", "topLeft", "topRight", "bottomRight"}
 
 type Room struct {
 	ID              string
@@ -21,20 +21,23 @@ type Room struct {
 	PlayerPositions map[string]string
 	HandSizes       map[string]int
 	LifeTotals      map[string]int
+	Turn            string
 }
 
 func NewRoom(id string) *Room {
 	return &Room{
-		ID:         id,
-		Clients:    make(map[*Client]bool),
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
-		Broadcast:  make(chan []byte),
-		Cards:      make(map[string]*BoardCard),
-		DeckURLs:   make(map[string]string),
-		Decks:      make(map[string]*Deck),
-		HandSizes:  make(map[string]int),
-		LifeTotals: make(map[string]int),
+		ID:              id,
+		Clients:         make(map[*Client]bool),
+		Register:        make(chan *Client),
+		Unregister:      make(chan *Client),
+		Broadcast:       make(chan []byte),
+		Cards:           make(map[string]*BoardCard),
+		DeckURLs:        make(map[string]string),
+		Decks:           make(map[string]*Deck),
+		PlayerPositions: make(map[string]string),
+		HandSizes:       make(map[string]int),
+		LifeTotals:      make(map[string]int),
+		Turn:            "",
 	}
 }
 
@@ -116,6 +119,7 @@ func (r *Room) Run() {
 				"users":     r.GetUsernames(),
 				"positions": r.PlayerPositions,
 				"handSizes": r.HandSizes,
+				"turn":      r.Turn,
 			}
 			data, _ := json.Marshal(payload)
 			client.Send <- data

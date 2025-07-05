@@ -35,6 +35,9 @@ func ServeWebSocket(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		Room:     room,
 		Username: username,
 	}
+	if room.Turn == "" {
+		room.Turn = username
+	}
 	room.Register <- client
 	go client.read()
 	go client.write()
