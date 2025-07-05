@@ -143,10 +143,14 @@ func (r *Room) Run() {
 						delete(r.Cards, id)
 					}
 				}
+				if r.Turn == client.Username {
+					r.Turn = getNextTurn(r.PlayerPositions, r.Turn)
+				}
 				payload := map[string]interface{}{
 					"type":      "USER_LEFT",
 					"user":      client.Username,
 					"positions": r.PlayerPositions,
+					"turn":      r.Turn,
 				}
 				data, _ := json.Marshal(payload)
 				r.mu.Unlock()
@@ -172,4 +176,30 @@ func (r *Room) GetUsernames() []string {
 		usernames = append(usernames, client.Username)
 	}
 	return usernames
+}
+
+func getNextTurn(positions map[string]string, activePlayer string) string {
+
+	posToPlayer := make(map[string]string)
+	for user, pos := range positions {
+		posToPlayer[pos] = user
+	}
+	currentPos := positions[activePlayer]
+	currentIdx := -1
+	for i, pos := range defaultPositions {
+		if pos == currentPos {
+			currentIdx = i
+			break
+		}
+	}
+	for i := 1; i <= 4; i++ {
+		nextIdx := (currentIdx + i) % 4
+		nextPos := defaultPositions[nextIdx]
+		nextPlayer, exists := posToPlayer[nextPos]
+		if exists {
+			return nextPlayer
+		}
+	}
+
+	return ""
 }

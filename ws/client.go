@@ -143,27 +143,7 @@ func (c *Client) read() {
 
 		case "PASS_TURN":
 			c.Room.mu.Lock()
-			posToPlayer := make(map[string]string)
-			for user, pos := range c.Room.PlayerPositions {
-				posToPlayer[pos] = user
-			}
-			currentPos := c.Room.PlayerPositions[c.Username]
-			currentIdx := -1
-			for i, pos := range defaultPositions {
-				if pos == currentPos {
-					currentIdx = i
-					break
-				}
-			}
-			for i := 1; i <= 4; i++ {
-				nextIdx := (currentIdx + i) % 4
-				nextPos := defaultPositions[nextIdx]
-				nextPlayer, exists := posToPlayer[nextPos]
-				if exists {
-					c.Room.Turn = nextPlayer
-					break
-				}
-			}
+			c.Room.Turn = getNextTurn(c.Room.PlayerPositions, c.Room.Turn)
 			c.Room.mu.Unlock()
 			update := map[string]interface{}{
 				"type": "TURN_PASSED",
@@ -313,6 +293,7 @@ func (c *Client) read() {
 			}
 			updated, _ := json.Marshal(wrapped)
 			c.Room.BroadcastExcept(updated, c)
+
 		case "TUTOR_TO_HAND":
 			c.Room.mu.Lock()
 			c.Room.HandSizes[msg.Username] += 1
