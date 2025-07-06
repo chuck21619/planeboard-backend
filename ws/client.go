@@ -105,11 +105,12 @@ func (c *Client) read() {
 			var commanderBoardCards []*BoardCard
 			for i, commander := range parsedCommanders {
 				card := &BoardCard{
-					Card:   commander,
-					X:      x + commanderXOffsetSign*float64(i)*70,
-					Y:      y + commanderYOffset,
-					Owner:  c.Username,
-					Tapped: false,
+					Card:    commander,
+					X:       x + commanderXOffsetSign*float64(i)*70,
+					Y:       y + commanderYOffset,
+					Owner:   c.Username,
+					Tapped:  false,
+					Flipped: false,
 				}
 				c.Room.Cards[commander.ID] = card
 				commanderBoardCards = append(commanderBoardCards, card)
@@ -164,22 +165,23 @@ func (c *Client) read() {
 				return
 			}
 			card := Card{
-				ID:        msg.Card.ID,
-				Name:      msg.Card.Name,
-				ImageURL:  msg.Card.ImageURL,
-				UID:       msg.Card.UID,
-				HasTokens: msg.Card.HasTokens,
+				ID:           msg.Card.ID,
+				Name:         msg.Card.Name,
+				ImageURL:     msg.Card.ImageURL,
+				ImageURLBack: msg.Card.ImageURLBack,
+				UID:          msg.Card.UID,
+				HasTokens:    msg.Card.HasTokens,
 			}
 			deck.Cards = append([]Card{card}, deck.Cards...)
 			c.Room.mu.Unlock()
 			update := map[string]interface{}{
-				"username": c.Username,
-				"type":     "CARD_TO_TOP_OF_DECK",
-				"deckId":   msg.Username,
-				"deckCards":    deck.Cards,
-				"handSize": c.Room.HandSizes,
-				"id": msg.Card.ID, 
-				"source": msg.Source,
+				"username":  c.Username,
+				"type":      "CARD_TO_TOP_OF_DECK",
+				"deckId":    msg.Username,
+				"deckCards": deck.Cards,
+				"handSize":  c.Room.HandSizes,
+				"id":        msg.Card.ID,
+				"source":    msg.Source,
 			}
 			broadcast, _ := json.Marshal(update)
 			c.Room.BroadcastExcept(broadcast, c)
@@ -195,22 +197,23 @@ func (c *Client) read() {
 				return
 			}
 			card := Card{
-				ID:        msg.Card.ID,
-				Name:      msg.Card.Name,
-				ImageURL:  msg.Card.ImageURL,
-				UID:       msg.Card.UID,
-				HasTokens: msg.Card.HasTokens,
+				ID:           msg.Card.ID,
+				Name:         msg.Card.Name,
+				ImageURL:     msg.Card.ImageURL,
+				ImageURLBack: msg.Card.ImageURLBack,
+				UID:          msg.Card.UID,
+				HasTokens:    msg.Card.HasTokens,
 			}
 			deck.Cards = append(deck.Cards, card)
 			c.Room.mu.Unlock()
 			update := map[string]interface{}{
-				"username": c.Username,
-				"type":     "CARD_TO_BOTTOM_OF_DECK",
-				"deckId":   msg.Username,
-				"deckCards":    deck.Cards,
-				"handSize": c.Room.HandSizes,
-				"id": msg.Card.ID, 
-				"source": msg.Source,
+				"username":  c.Username,
+				"type":      "CARD_TO_BOTTOM_OF_DECK",
+				"deckId":    msg.Username,
+				"deckCards": deck.Cards,
+				"handSize":  c.Room.HandSizes,
+				"id":        msg.Card.ID,
+				"source":    msg.Source,
 			}
 			broadcast, _ := json.Marshal(update)
 			c.Room.BroadcastExcept(broadcast, c)
@@ -226,11 +229,12 @@ func (c *Client) read() {
 				return
 			}
 			card := Card{
-				ID:        msg.Card.ID,
-				Name:      msg.Card.Name,
-				ImageURL:  msg.Card.ImageURL,
-				UID:       msg.Card.UID,
-				HasTokens: msg.Card.HasTokens,
+				ID:           msg.Card.ID,
+				Name:         msg.Card.Name,
+				ImageURL:     msg.Card.ImageURL,
+				ImageURLBack: msg.Card.ImageURLBack,
+				UID:          msg.Card.UID,
+				HasTokens:    msg.Card.HasTokens,
 			}
 			deck.Cards = append(deck.Cards, card)
 			r := mrand.New(mrand.NewSource(time.Now().UnixNano()))
@@ -239,13 +243,13 @@ func (c *Client) read() {
 			})
 			c.Room.mu.Unlock()
 			update := map[string]interface{}{
-				"username": c.Username,
-				"type":     "CARD_TO_SHUFFLE_IN_DECK",
-				"deckId":   msg.Username,
-				"deckCards":    deck.Cards,
-				"handSize": c.Room.HandSizes,
-				"id": msg.Card.ID, 
-				"source": msg.Source,
+				"username":  c.Username,
+				"type":      "CARD_TO_SHUFFLE_IN_DECK",
+				"deckId":    msg.Username,
+				"deckCards": deck.Cards,
+				"handSize":  c.Room.HandSizes,
+				"id":        msg.Card.ID,
+				"source":    msg.Source,
 			}
 			broadcast, _ := json.Marshal(update)
 			c.Room.BroadcastSafe(broadcast)
@@ -254,16 +258,18 @@ func (c *Client) read() {
 			c.Room.mu.Lock()
 			card := &BoardCard{
 				Card: Card{
-					ID:        msg.Card.ID,
-					Name:      msg.Card.Name,
-					ImageURL:  msg.Card.ImageURL,
-					UID:       msg.Card.UID,
-					HasTokens: msg.Card.HasTokens,
+					ID:           msg.Card.ID,
+					Name:         msg.Card.Name,
+					ImageURL:     msg.Card.ImageURL,
+					ImageURLBack: msg.Card.ImageURLBack,
+					UID:          msg.Card.UID,
+					HasTokens:    msg.Card.HasTokens,
 				},
-				X:      msg.Card.X,
-				Y:      msg.Card.Y,
-				Owner:  c.Username,
-				Tapped: false,
+				X:       msg.Card.X,
+				Y:       msg.Card.Y,
+				Owner:   c.Username,
+				Tapped:  false,
+				Flipped: false,
 			}
 			c.Room.Cards[card.ID] = card
 			c.Room.HandSizes[c.Username] -= 1
@@ -300,10 +306,11 @@ func (c *Client) read() {
 					UID:       msg.Card.UID,
 					HasTokens: msg.Card.HasTokens,
 				},
-				X:      msg.Card.X,
-				Y:      msg.Card.Y,
-				Owner:  msg.Card.Owner,
-				Tapped: false,
+				X:       msg.Card.X,
+				Y:       msg.Card.Y,
+				Owner:   msg.Card.Owner,
+				Tapped:  false,
+				Flipped: false,
 			}
 			c.Room.Cards[token.ID] = token
 			c.Room.mu.Unlock()
@@ -318,16 +325,18 @@ func (c *Client) read() {
 			c.Room.mu.Lock()
 			card := &BoardCard{
 				Card: Card{
-					ID:        msg.Card.ID,
-					Name:      msg.Card.Name,
-					ImageURL:  msg.Card.ImageURL,
-					UID:       msg.Card.UID,
-					HasTokens: msg.Card.HasTokens,
+					ID:           msg.Card.ID,
+					Name:         msg.Card.Name,
+					ImageURL:     msg.Card.ImageURL,
+					ImageURLBack: msg.Card.ImageURLBack,
+					UID:          msg.Card.UID,
+					HasTokens:    msg.Card.HasTokens,
 				},
-				X:      msg.Card.X,
-				Y:      msg.Card.Y,
-				Owner:  c.Username,
-				Tapped: false,
+				X:       msg.Card.X,
+				Y:       msg.Card.Y,
+				Owner:   c.Username,
+				Tapped:  false,
+				Flipped: false,
 			}
 			c.Room.Cards[card.ID] = card
 			if deck, ok := c.Room.Decks[msg.Username]; ok {
@@ -357,6 +366,20 @@ func (c *Client) read() {
 				"type":   "CARD_TAPPED",
 				"id":     card.ID,
 				"tapped": card.Tapped,
+			}
+			updated, _ := json.Marshal(wrapped)
+			c.Room.BroadcastExcept(updated, c)
+
+		case "FLIP_CARD":
+			c.Room.mu.Lock()
+			card := c.Room.Cards[msg.ID]
+			card.Flipped = msg.Flipped
+			c.Room.mu.Unlock()
+
+			wrapped := map[string]interface{}{
+				"type":    "CARD_FLIPPED",
+				"id":      card.ID,
+				"flipped": card.Flipped,
 			}
 			updated, _ := json.Marshal(wrapped)
 			c.Room.BroadcastExcept(updated, c)
