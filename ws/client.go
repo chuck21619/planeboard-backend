@@ -176,8 +176,10 @@ func (c *Client) read() {
 				"username": c.Username,
 				"type":     "CARD_TO_TOP_OF_DECK",
 				"deckId":   msg.Username,
-				"cards":    deck.Cards,
+				"deckCards":    deck.Cards,
 				"handSize": c.Room.HandSizes,
+				"id": msg.Card.ID, 
+				"source": msg.Source,
 			}
 			broadcast, _ := json.Marshal(update)
 			c.Room.BroadcastExcept(broadcast, c)
@@ -205,8 +207,10 @@ func (c *Client) read() {
 				"username": c.Username,
 				"type":     "CARD_TO_BOTTOM_OF_DECK",
 				"deckId":   msg.Username,
-				"cards":    deck.Cards,
+				"deckCards":    deck.Cards,
 				"handSize": c.Room.HandSizes,
+				"id": msg.Card.ID, 
+				"source": msg.Source,
 			}
 			broadcast, _ := json.Marshal(update)
 			c.Room.BroadcastExcept(broadcast, c)
@@ -238,8 +242,10 @@ func (c *Client) read() {
 				"username": c.Username,
 				"type":     "CARD_TO_SHUFFLE_IN_DECK",
 				"deckId":   msg.Username,
-				"cards":    deck.Cards,
+				"deckCards":    deck.Cards,
 				"handSize": c.Room.HandSizes,
+				"id": msg.Card.ID, 
+				"source": msg.Source,
 			}
 			broadcast, _ := json.Marshal(update)
 			c.Room.BroadcastSafe(broadcast)
