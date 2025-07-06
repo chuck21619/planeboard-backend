@@ -14,4 +14,6 @@ type Message struct {
 
 	Cards []BoardCard `json:"cards,omitempty"`
 	Card  BoardCard   `json:"card,omitempty"`
+
+	Source string `json:"source,omitempty"`
 }

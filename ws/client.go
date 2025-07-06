@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
+	mrand "math/rand"
 	"sync"
 	"time"
 )
@@ -152,6 +153,97 @@ func (c *Client) read() {
 			broadcast, _ := json.Marshal(update)
 			c.Room.BroadcastSafe(broadcast)
 
+		case "CARD_TO_TOP_OF_DECK":
+			c.Room.mu.Lock()
+			deck := c.Room.Decks[msg.Username]
+			if msg.Source == "board" {
+				delete(c.Room.Cards, msg.Card.ID)
+			} else if msg.Source == "hand" {
+				c.Room.HandSizes[msg.Username] -= 1
+			} else {
+				return
+			}
+			card := Card{
+				ID:        msg.Card.ID,
+				Name:      msg.Card.Name,
+				ImageURL:  msg.Card.ImageURL,
+				UID:       msg.Card.UID,
+				HasTokens: msg.Card.HasTokens,
+			}
+			deck.Cards = append([]Card{card}, deck.Cards...)
+			c.Room.mu.Unlock()
+			update := map[string]interface{}{
+				"username": c.Username,
+				"type":     "CARD_TO_TOP_OF_DECK",
+				"deckId":   msg.Username,
+				"cards":    deck.Cards,
+				"handSize": c.Room.HandSizes,
+			}
+			broadcast, _ := json.Marshal(update)
+			c.Room.BroadcastExcept(broadcast, c)
+
+		case "CARD_TO_BOTTOM_OF_DECK":
+			c.Room.mu.Lock()
+			deck := c.Room.Decks[msg.Username]
+			if msg.Source == "board" {
+				delete(c.Room.Cards, msg.Card.ID)
+			} else if msg.Source == "hand" {
+				c.Room.HandSizes[msg.Username] -= 1
+			} else {
+				return
+			}
+			card := Card{
+				ID:        msg.Card.ID,
+				Name:      msg.Card.Name,
+				ImageURL:  msg.Card.ImageURL,
+				UID:       msg.Card.UID,
+				HasTokens: msg.Card.HasTokens,
+			}
+			deck.Cards = append(deck.Cards, card)
+			c.Room.mu.Unlock()
+			update := map[string]interface{}{
+				"username": c.Username,
+				"type":     "CARD_TO_BOTTOM_OF_DECK",
+				"deckId":   msg.Username,
+				"cards":    deck.Cards,
+				"handSize": c.Room.HandSizes,
+			}
+			broadcast, _ := json.Marshal(update)
+			c.Room.BroadcastExcept(broadcast, c)
+
+		case "CARD_TO_SHUFFLE_IN_DECK":
+			c.Room.mu.Lock()
+			deck := c.Room.Decks[msg.Username]
+			if msg.Source == "board" {
+				delete(c.Room.Cards, msg.Card.ID)
+			} else if msg.Source == "hand" {
+				c.Room.HandSizes[msg.Username] -= 1
+			} else {
+				return
+			}
+			card := Card{
+				ID:        msg.Card.ID,
+				Name:      msg.Card.Name,
+				ImageURL:  msg.Card.ImageURL,
+				UID:       msg.Card.UID,
+				HasTokens: msg.Card.HasTokens,
+			}
+			deck.Cards = append(deck.Cards, card)
+			r := mrand.New(mrand.NewSource(time.Now().UnixNano()))
+			r.Shuffle(len(deck.Cards), func(i, j int) {
+				deck.Cards[i], deck.Cards[j] = deck.Cards[j], deck.Cards[i]
+			})
+			c.Room.mu.Unlock()
+			update := map[string]interface{}{
+				"username": c.Username,
+				"type":     "CARD_TO_SHUFFLE_IN_DECK",
+				"deckId":   msg.Username,
+				"cards":    deck.Cards,
+				"handSize": c.Room.HandSizes,
+			}
+			broadcast, _ := json.Marshal(update)
+			c.Room.BroadcastSafe(broadcast)
+
 		case "CARD_PLAYED_FROM_HAND":
 			c.Room.mu.Lock()
 			card := &BoardCard{
@@ -252,15 +344,7 @@ func (c *Client) read() {
 
 		case "TAP_CARD":
 			c.Room.mu.Lock()
-			card, exists := c.Room.Cards[msg.ID]
-			if !exists {
-				card = &BoardCard{
-					Card: Card{
-						ID: msg.ID,
-					},
-				}
-				c.Room.Cards[msg.ID] = card
-			}
+			card := c.Room.Cards[msg.ID]
 			card.Tapped = msg.Tapped
 			c.Room.mu.Unlock()
 			wrapped := map[string]interface{}{
@@ -273,15 +357,7 @@ func (c *Client) read() {
 
 		case "MOVE_CARD":
 			c.Room.mu.Lock()
-			card, exists := c.Room.Cards[msg.ID]
-			if !exists {
-				card = &BoardCard{
-					Card: Card{
-						ID: msg.ID,
-					},
-				}
-				c.Room.Cards[msg.ID] = card
-			}
+			card := c.Room.Cards[msg.ID]
 			card.X = msg.X
 			card.Y = msg.Y
 			c.Room.mu.Unlock()
