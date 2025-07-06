@@ -55,28 +55,48 @@ func ParseDeck(data []byte) ([]Card, []Card, error) {
 				Edition         struct {
 					EditionCode string `json:"editioncode"`
 				} `json:"edition"`
-				OracleCard struct {
+				ScryfallImageHash string `json:"scryfallImageHash"`
+				OracleCard        struct {
 					Name   string   `json:"name"`
 					Tokens []string `json:"tokens"`
+					Faces  []any    `json:"faces"`
 				} `json:"oracleCard"`
 			} `json:"card"`
 		} `json:"cards"`
 	}
-
 	if err := json.Unmarshal(data, &parsed); err != nil {
 		return nil, nil, fmt.Errorf("error unmarshaling deck JSON: %w", err)
 	}
-
 	var allCards []Card
 	var commanderCards []Card
-
 	for _, c := range parsed.Cards {
+		skip := false
+		for _, category := range c.Categories {
+			if category == "Maybeboard" || category == "Sideboard" {
+				skip = true
+				break
+			}
+		}
+		if skip {
+			continue
+		}
 		imageURL := fmt.Sprintf(
 			"https://api.scryfall.com/cards/%s/%s?format=image&version=normal",
 			c.Card.Edition.EditionCode,
 			c.Card.CollectorNumber,
 		)
-
+		imageURLBack := ""
+		if len(c.Card.OracleCard.Faces) > 0 && c.Card.UID != "" && c.Card.ScryfallImageHash != "" {
+			uidClean := strings.ReplaceAll(c.Card.UID, "-", "")
+			if len(uidClean) >= 2 {
+				dir1 := string(uidClean[0])
+				dir2 := string(uidClean[1])
+				imageURLBack = fmt.Sprintf(
+					"https://cards.scryfall.io/normal/back/%s/%s/%s.jpg?%s",
+					dir1, dir2, c.Card.UID, c.Card.ScryfallImageHash,
+				)
+			}
+		}
 		isCommander := false
 		for _, category := range c.Categories {
 			if category == "Commander" {
@@ -84,7 +104,6 @@ func ParseDeck(data []byte) ([]Card, []Card, error) {
 				break
 			}
 		}
-
 		for i := 0; i < c.Quantity; i++ {
 			suffix := make([]byte, 4)
 			_, err := crand.Read(suffix)
@@ -93,11 +112,12 @@ func ParseDeck(data []byte) ([]Card, []Card, error) {
 			}
 			uniqueID := fmt.Sprintf("%d-%s", c.Card.ID, hex.EncodeToString(suffix))
 			card := Card{
-				ID:        uniqueID,
-				Name:      c.Card.OracleCard.Name,
-				ImageURL:  imageURL,
-				UID:       c.Card.UID,
-				HasTokens: len(c.Card.OracleCard.Tokens) > 0,
+				ID:           uniqueID,
+				Name:         c.Card.OracleCard.Name,
+				ImageURL:     imageURL,
+				ImageURLBack: imageURLBack,
+				UID:          c.Card.UID,
+				HasTokens:    len(c.Card.OracleCard.Tokens) > 0,
 			}
 			if isCommander {
 				commanderCards = append(commanderCards, card)
@@ -106,10 +126,8 @@ func ParseDeck(data []byte) ([]Card, []Card, error) {
 			}
 		}
 	}
-
 	mrand.Shuffle(len(allCards), func(i, j int) {
 		allCards[i], allCards[j] = allCards[j], allCards[i]
 	})
-
 	return allCards, commanderCards, nil
 }

@@ -1,11 +1,12 @@
 package ws
 
 type Card struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	ImageURL  string `json:"imageUrl"`
-	UID       string `json:"uid"`
-	HasTokens bool   `json:"hasTokens"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	ImageURL     string `json:"imageUrl"`
+	ImageURLBack string `json:"imageUrlBack"`
+	UID          string `json:"uid"`
+	HasTokens    bool   `json:"hasTokens"`
 }
 
 type BoardCard struct {
