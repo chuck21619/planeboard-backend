@@ -59,7 +59,7 @@ func ParseDeck(data []byte) ([]Card, []Card, error) {
 				OracleCard        struct {
 					Name   string   `json:"name"`
 					Tokens []string `json:"tokens"`
-					Faces  []any    `json:"faces"`
+					Layout string   `json:"layout"`
 				} `json:"oracleCard"`
 			} `json:"card"`
 		} `json:"cards"`
@@ -85,8 +85,13 @@ func ParseDeck(data []byte) ([]Card, []Card, error) {
 			c.Card.Edition.EditionCode,
 			c.Card.CollectorNumber,
 		)
+		nonStandardBackLayouts := map[string]bool{
+			"modal_dfc": true,
+			"transform": true,
+			"meld":      true,
+		}
 		imageURLBack := ""
-		if len(c.Card.OracleCard.Faces) > 0 && c.Card.UID != "" && c.Card.ScryfallImageHash != "" {
+		if nonStandardBackLayouts[c.Card.OracleCard.Layout] && c.Card.UID != "" && c.Card.ScryfallImageHash != "" {
 			uidClean := strings.ReplaceAll(c.Card.UID, "-", "")
 			if len(uidClean) >= 2 {
 				dir1 := string(uidClean[0])
