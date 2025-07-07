@@ -105,12 +105,12 @@ func (c *Client) read() {
 			var commanderBoardCards []*BoardCard
 			for i, commander := range parsedCommanders {
 				card := &BoardCard{
-					Card:    commander,
-					X:       x + commanderXOffsetSign*float64(i)*70,
-					Y:       y + commanderYOffset,
-					Owner:   c.Username,
-					Tapped:  false,
-					Flipped: false,
+					Card:      commander,
+					X:         x + commanderXOffsetSign*float64(i)*70,
+					Y:         y + commanderYOffset,
+					Owner:     c.Username,
+					Tapped:    false,
+					FlipIndex: 0,
 				}
 				c.Room.Cards[commander.ID] = card
 				commanderBoardCards = append(commanderBoardCards, card)
@@ -171,6 +171,7 @@ func (c *Client) read() {
 				ImageURLBack: msg.Card.ImageURLBack,
 				UID:          msg.Card.UID,
 				HasTokens:    msg.Card.HasTokens,
+				NumFaces:     msg.Card.NumFaces,
 			}
 			deck.Cards = append([]Card{card}, deck.Cards...)
 			c.Room.mu.Unlock()
@@ -203,6 +204,7 @@ func (c *Client) read() {
 				ImageURLBack: msg.Card.ImageURLBack,
 				UID:          msg.Card.UID,
 				HasTokens:    msg.Card.HasTokens,
+				NumFaces:     msg.Card.NumFaces,
 			}
 			deck.Cards = append(deck.Cards, card)
 			c.Room.mu.Unlock()
@@ -235,6 +237,7 @@ func (c *Client) read() {
 				ImageURLBack: msg.Card.ImageURLBack,
 				UID:          msg.Card.UID,
 				HasTokens:    msg.Card.HasTokens,
+				NumFaces:     msg.Card.NumFaces,
 			}
 			deck.Cards = append(deck.Cards, card)
 			r := mrand.New(mrand.NewSource(time.Now().UnixNano()))
@@ -264,12 +267,13 @@ func (c *Client) read() {
 					ImageURLBack: msg.Card.ImageURLBack,
 					UID:          msg.Card.UID,
 					HasTokens:    msg.Card.HasTokens,
+					NumFaces:     msg.Card.NumFaces,
 				},
-				X:       msg.Card.X,
-				Y:       msg.Card.Y,
-				Owner:   c.Username,
-				Tapped:  false,
-				Flipped: false,
+				X:         msg.Card.X,
+				Y:         msg.Card.Y,
+				Owner:     c.Username,
+				Tapped:    false,
+				FlipIndex: msg.Card.FlipIndex,
 			}
 			c.Room.Cards[card.ID] = card
 			c.Room.HandSizes[c.Username] -= 1
@@ -305,12 +309,13 @@ func (c *Client) read() {
 					ImageURL:  msg.Card.ImageURL,
 					UID:       msg.Card.UID,
 					HasTokens: msg.Card.HasTokens,
+					NumFaces:  msg.Card.NumFaces,
 				},
-				X:       msg.Card.X,
-				Y:       msg.Card.Y,
-				Owner:   msg.Card.Owner,
-				Tapped:  false,
-				Flipped: false,
+				X:         msg.Card.X,
+				Y:         msg.Card.Y,
+				Owner:     msg.Card.Owner,
+				Tapped:    false,
+				FlipIndex: 0,
 			}
 			c.Room.Cards[token.ID] = token
 			c.Room.mu.Unlock()
@@ -331,12 +336,13 @@ func (c *Client) read() {
 					ImageURLBack: msg.Card.ImageURLBack,
 					UID:          msg.Card.UID,
 					HasTokens:    msg.Card.HasTokens,
+					NumFaces:     msg.Card.NumFaces,
 				},
-				X:       msg.Card.X,
-				Y:       msg.Card.Y,
-				Owner:   c.Username,
-				Tapped:  false,
-				Flipped: false,
+				X:         msg.Card.X,
+				Y:         msg.Card.Y,
+				Owner:     c.Username,
+				Tapped:    false,
+				FlipIndex: msg.Card.FlipIndex,
 			}
 			c.Room.Cards[card.ID] = card
 			if deck, ok := c.Room.Decks[msg.Username]; ok {
@@ -373,13 +379,13 @@ func (c *Client) read() {
 		case "FLIP_CARD":
 			c.Room.mu.Lock()
 			card := c.Room.Cards[msg.ID]
-			card.Flipped = msg.Flipped
+			card.FlipIndex = msg.FlipIndex
 			c.Room.mu.Unlock()
 
 			wrapped := map[string]interface{}{
-				"type":    "CARD_FLIPPED",
-				"id":      card.ID,
-				"flipped": card.Flipped,
+				"type":      "CARD_FLIPPED",
+				"id":        card.ID,
+				"flipIndex": card.FlipIndex,
 			}
 			updated, _ := json.Marshal(wrapped)
 			c.Room.BroadcastExcept(updated, c)
@@ -395,6 +401,7 @@ func (c *Client) read() {
 				"id":   card.ID,
 				"x":    card.X,
 				"y":    card.Y,
+				"flipIndex": msg.FlipIndex,
 			}
 			updated, _ := json.Marshal(wrapped)
 			c.Room.BroadcastExcept(updated, c)

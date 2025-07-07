@@ -116,6 +116,10 @@ func ParseDeck(data []byte) ([]Card, []Card, error) {
 				return nil, nil, fmt.Errorf("error generating card ID: %w", err)
 			}
 			uniqueID := fmt.Sprintf("%d-%s", c.Card.ID, hex.EncodeToString(suffix))
+			numFaces := 2
+			if imageURLBack != "" {
+				numFaces = 3
+			}
 			card := Card{
 				ID:           uniqueID,
 				Name:         c.Card.OracleCard.Name,
@@ -123,6 +127,7 @@ func ParseDeck(data []byte) ([]Card, []Card, error) {
 				ImageURLBack: imageURLBack,
 				UID:          c.Card.UID,
 				HasTokens:    len(c.Card.OracleCard.Tokens) > 0,
+				NumFaces:     numFaces,
 			}
 			if isCommander {
 				commanderCards = append(commanderCards, card)

@@ -7,13 +7,14 @@ type Card struct {
 	ImageURLBack string `json:"imageUrlBack"`
 	UID          string `json:"uid"`
 	HasTokens    bool   `json:"hasTokens"`
+	NumFaces     int    `json:"numFaces"`
 }
 
 type BoardCard struct {
 	Card
-	X       float64 `json:"x"`
-	Y       float64 `json:"y"`
-	Owner   string  `json:"owner"`
-	Tapped  bool    `json:"tapped"`
-	Flipped bool    `json:"flipped"`
+	X         float64 `json:"x"`
+	Y         float64 `json:"y"`
+	Owner     string  `json:"owner"`
+	Tapped    bool    `json:"tapped"`
+	FlipIndex int     `json:"flipIndex"`
 }
