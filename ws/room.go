@@ -22,6 +22,7 @@ type Room struct {
 	HandSizes       map[string]int
 	LifeTotals      map[string]int
 	Turn            string
+	Counters        map[string]*Counter
 }
 
 func NewRoom(id string) *Room {
@@ -38,6 +39,7 @@ func NewRoom(id string) *Room {
 		HandSizes:       make(map[string]int),
 		LifeTotals:      make(map[string]int),
 		Turn:            "",
+		Counters:        make(map[string]*Counter),
 	}
 }
 
@@ -120,6 +122,7 @@ func (r *Room) Run() {
 				"positions": r.PlayerPositions,
 				"handSizes": r.HandSizes,
 				"turn":      r.Turn,
+				"counters":  r.Counters,
 			}
 			data, _ := json.Marshal(payload)
 			client.Send <- data

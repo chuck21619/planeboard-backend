@@ -17,4 +17,7 @@ type Message struct {
 	Card  BoardCard   `json:"card,omitempty"`
 
 	Source string `json:"source,omitempty"`
+
+	Counters []Counter `json:"counters,omitempty"`
+	Count    int       `json:"count,omitempty"`
 }

@@ -397,10 +397,10 @@ func (c *Client) read() {
 			card.Y = msg.Y
 			c.Room.mu.Unlock()
 			wrapped := map[string]interface{}{
-				"type": "MOVE_CARD",
-				"id":   card.ID,
-				"x":    card.X,
-				"y":    card.Y,
+				"type":      "MOVE_CARD",
+				"id":        card.ID,
+				"x":         card.X,
+				"y":         card.Y,
 				"flipIndex": msg.FlipIndex,
 			}
 			updated, _ := json.Marshal(wrapped)
@@ -430,6 +430,7 @@ func (c *Client) read() {
 			if err == nil {
 				c.Room.BroadcastExcept(data, c)
 			}
+
 		case "RETURN_TO_HAND":
 			c.Room.mu.Lock()
 			delete(c.Room.Cards, msg.ID)
@@ -447,6 +448,63 @@ func (c *Client) read() {
 			if err == nil {
 				c.Room.BroadcastExcept(data, c)
 			}
+
+		case "ADD_COUNTER":
+			c.Room.mu.Lock()
+			counter := &Counter{
+				ID:    msg.Counters[0].ID,
+				X:     msg.Counters[0].X,
+				Y:     msg.Counters[0].Y,
+				Count: msg.Counters[0].Count,
+				Owner: msg.Counters[0].Owner,
+			}
+			c.Room.Counters[counter.ID] = counter
+			c.Room.mu.Unlock()
+			broadcast := map[string]interface{}{
+				"type":    "COUNTER_ADDED",
+				"counter": counter,
+			}
+			data, _ := json.Marshal(broadcast)
+			c.Room.BroadcastExcept(data, c)
+
+		case "MOVE_COUNTER":
+			c.Room.mu.Lock()
+			counter := c.Room.Counters[msg.ID]
+			counter.X = msg.X
+			counter.Y = msg.Y
+			c.Room.mu.Unlock()
+			wrapped := map[string]interface{}{
+				"type": "COUNTER_MOVED",
+				"id":   counter.ID,
+				"x":    counter.X,
+				"y":    counter.Y,
+			}
+			updated, _ := json.Marshal(wrapped)
+			c.Room.BroadcastExcept(updated, c)
+
+		case "UPDATE_COUNTER":
+			c.Room.mu.Lock()
+			counter := c.Room.Counters[msg.ID]
+			counter.Count = msg.Count
+			c.Room.mu.Unlock()
+			wrapped := map[string]interface{}{
+				"type":  "COUNTER_UPDATED",
+				"id":    counter.ID,
+				"count": counter.Count,
+			}
+			updated, _ := json.Marshal(wrapped)
+			c.Room.BroadcastExcept(updated, c)
+
+		case "DELETE_COUNTER":
+			c.Room.mu.Lock()
+			delete(c.Room.Counters, msg.ID)
+			c.Room.mu.Unlock()
+			wrapped := map[string]interface{}{
+				"type": "COUNTER_DELETED",
+				"id":   msg.ID,
+			}
+			updated, _ := json.Marshal(wrapped)
+			c.Room.BroadcastExcept(updated, c)
 		}
 	}
 }
