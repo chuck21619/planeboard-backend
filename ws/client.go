@@ -460,6 +460,21 @@ func (c *Client) read() {
 			data, _ := json.Marshal(broadcast)
 			c.Room.BroadcastExcept(data, c)
 
+		case "SURVEIL_RESOLVED":
+			c.Room.mu.Lock()
+			c.Room.Decks[msg.Deck.ID] = &msg.Deck
+			for _, card := range msg.Cards {
+				c.Room.Cards[card.ID] = &card
+			}
+			c.Room.mu.Unlock()
+			broadcast := map[string]interface{}{
+				"type":        "PLAYER_SURVEILED",
+				"deck":        c.Room.Decks[msg.Deck.ID],
+				"toGraveyard": msg.Cards,
+			}
+			data, _ := json.Marshal(broadcast)
+			c.Room.BroadcastExcept(data, c)
+
 		case "ADD_COUNTER":
 			c.Room.mu.Lock()
 			counter := &Counter{
