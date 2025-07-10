@@ -154,6 +154,21 @@ func (c *Client) read() {
 			broadcast, _ := json.Marshal(update)
 			c.Room.BroadcastSafe(broadcast)
 
+		case "UNTAP_ALL":
+			c.Room.mu.Lock()
+			for _, card := range c.Room.Cards {
+				if card.Owner == c.Username {
+					card.Tapped = false
+				}
+			}
+			c.Room.mu.Unlock()
+			update := map[string]interface{}{
+				"type":   "UNTAPPED_ALL",
+				"player": c.Username,
+			}
+			broadcast, _ := json.Marshal(update)
+			c.Room.BroadcastExcept(broadcast, c)
+
 		case "CARD_TO_TOP_OF_DECK":
 			c.Room.mu.Lock()
 			deck := c.Room.Decks[msg.Username]
