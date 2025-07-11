@@ -592,7 +592,14 @@ func (c *Client) read() {
 			updated, _ := json.Marshal(wrapped)
 			c.Room.BroadcastExcept(updated, c)
 
-			//case "ROLL_DICE":
+		case "ROLL_DICE":
+			wrapped := map[string]interface{}{
+				"type":    "DICE_ROLLED",
+				"id":      msg.ID,
+				"results": msg.DiceResults,
+			}
+			broadcast, _ := json.Marshal(wrapped)
+			c.Room.BroadcastExcept(broadcast, c)
 		}
 	}
 }

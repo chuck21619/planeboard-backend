@@ -22,5 +22,6 @@ type Message struct {
 	Counters []Counter `json:"counters,omitempty"` // this should be a dictionary?
 	Count    int       `json:"count,omitempty"`
 
-	DiceRoller []DiceRoller `json:"diceRollers,omitempty"` // this should be a dictionary?
+	DiceRoller  []DiceRoller `json:"diceRollers,omitempty"` // this should be a dictionary?
+	DiceResults []int        `json:"diceResults,omitempty"`
 }
