@@ -19,6 +19,8 @@ type Message struct {
 
 	Source string `json:"source,omitempty"`
 
-	Counters []Counter `json:"counters,omitempty"`
+	Counters []Counter `json:"counters,omitempty"` // this should be a dictionary?
 	Count    int       `json:"count,omitempty"`
+
+	DiceRoller []DiceRoller `json:"diceRollers,omitempty"` // this should be a dictionary?
 }

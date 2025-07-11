@@ -23,6 +23,7 @@ type Room struct {
 	LifeTotals      map[string]int
 	Turn            string
 	Counters        map[string]*Counter
+	DiceRollers     map[string]*DiceRoller
 }
 
 func NewRoom(id string) *Room {
@@ -40,6 +41,7 @@ func NewRoom(id string) *Room {
 		LifeTotals:      make(map[string]int),
 		Turn:            "",
 		Counters:        make(map[string]*Counter),
+		DiceRollers:     make(map[string]*DiceRoller),
 	}
 }
 
@@ -115,14 +117,15 @@ func (r *Room) Run() {
 
 			r.HandSizes[client.Username] = 0
 			payload := map[string]interface{}{
-				"type":      "BOARD_STATE",
-				"cards":     cards,
-				"decks":     client.Room.Decks,
-				"users":     r.GetUsernames(),
-				"positions": r.PlayerPositions,
-				"handSizes": r.HandSizes,
-				"turn":      r.Turn,
-				"counters":  r.Counters,
+				"type":        "BOARD_STATE",
+				"cards":       cards,
+				"decks":       client.Room.Decks,
+				"users":       r.GetUsernames(),
+				"positions":   r.PlayerPositions,
+				"handSizes":   r.HandSizes,
+				"turn":        r.Turn,
+				"counters":    r.Counters,
+				"diceRollers": r.DiceRollers,
 			}
 			data, _ := json.Marshal(payload)
 			client.Send <- data

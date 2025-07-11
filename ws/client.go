@@ -546,6 +546,53 @@ func (c *Client) read() {
 			}
 			updated, _ := json.Marshal(wrapped)
 			c.Room.BroadcastExcept(updated, c)
+
+		case "ADD_DICE_ROLLER":
+			c.Room.mu.Lock()
+			diceRoller := &DiceRoller{
+				ID:       msg.DiceRoller[0].ID,
+				X:        msg.DiceRoller[0].X,
+				Y:        msg.DiceRoller[0].Y,
+				NumDice:  msg.DiceRoller[0].NumDice,
+				NumSides: msg.DiceRoller[0].NumSides,
+			}
+			c.Room.DiceRollers[diceRoller.ID] = diceRoller
+			c.Room.mu.Unlock()
+			broadcast := map[string]interface{}{
+				"type":       "DICE_ROLLER_ADDED",
+				"diceRoller": diceRoller,
+			}
+			data, _ := json.Marshal(broadcast)
+			c.Room.BroadcastExcept(data, c)
+
+		case "MOVE_DICE_ROLLER":
+			log.Printf("MOVE_DICE_ROLLER: msg.X = %f, msg.Y = %f\n", msg.X, msg.Y)
+			c.Room.mu.Lock()
+			diceRoller := c.Room.DiceRollers[msg.ID]
+			diceRoller.X = msg.X
+			diceRoller.Y = msg.Y
+			c.Room.mu.Unlock()
+			wrapped := map[string]interface{}{
+				"type": "DICE_ROLLER_MOVED",
+				"id":   diceRoller.ID,
+				"x":    diceRoller.X,
+				"y":    diceRoller.Y,
+			}
+			updated, _ := json.Marshal(wrapped)
+			c.Room.BroadcastExcept(updated, c)
+
+		case "DELETE_DICE_ROLLER":
+			c.Room.mu.Lock()
+			delete(c.Room.DiceRollers, msg.ID)
+			c.Room.mu.Unlock()
+			wrapped := map[string]interface{}{
+				"type": "DICE_ROLLER_DELETED",
+				"id":   msg.ID,
+			}
+			updated, _ := json.Marshal(wrapped)
+			c.Room.BroadcastExcept(updated, c)
+
+			//case "ROLL_DICE":
 		}
 	}
 }
