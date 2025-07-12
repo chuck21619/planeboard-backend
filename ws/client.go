@@ -391,6 +391,22 @@ func (c *Client) read() {
 			updated, _ := json.Marshal(wrapped)
 			c.Room.BroadcastExcept(updated, c)
 
+		case "SHUFFLE_DECK":
+			c.Room.mu.Lock()
+			deck := c.Room.Decks[msg.ID]
+			r := mrand.New(mrand.NewSource(time.Now().UnixNano()))
+			r.Shuffle(len(deck.Cards), func(i, j int) {
+				deck.Cards[i], deck.Cards[j] = deck.Cards[j], deck.Cards[i]
+			})
+			c.Room.mu.Unlock()
+			update := map[string]interface{}{
+				"type":      "DECK_SHUFFLED",
+				"id":        msg.ID,
+				"deckCards": deck.Cards,
+			}
+			broadcast, _ := json.Marshal(update)
+			c.Room.BroadcastSafe(broadcast)
+
 		case "FLIP_CARD":
 			c.Room.mu.Lock()
 			card := c.Room.Cards[msg.ID]
