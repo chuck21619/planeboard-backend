@@ -174,6 +174,7 @@ func (r *Room) Run() {
 			log.Printf("Client %s disconnected", client.Username)
 			if _, ok := r.Spectators[client]; ok {
 				delete(r.Spectators, client);
+				r.mu.Unlock()
 			} else if _, ok := r.Clients[client]; ok {
 				delete(r.Clients, client)
 				delete(r.Decks, client.Username)
