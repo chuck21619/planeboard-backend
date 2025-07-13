@@ -107,18 +107,25 @@ func (r *Room) Run() {
 
 			isSpectator := len(r.Clients) >= 4 || client.Spectator
 
+			var commanderBoardCards []*BoardCard
 			if isSpectator {
 				r.Spectators[client] = true
 			} else {
 				r.Clients[client] = true
 
-				deck := &Deck{
-					ID: client.Username,
-					X:  100,
-					Y:  100,
+				rawDeckJSON, err := FetchDeckJSON(client.DeckUrl)
+				if err != nil {
+					log.Printf("error fetching deck: %v", err)
+					client.sendError("Error fetching deck")
+					return
 				}
-				client.Room.Decks[client.Username] = deck
-
+				parsedCards, parsedCommanders, err := ParseDeck(rawDeckJSON)
+				if err != nil {
+					log.Printf("error parsing deck: %v", err)
+					return
+				}
+				r.DeckURLs[client.Username] = client.DeckUrl
+				
 				if r.PlayerPositions == nil {
 					r.PlayerPositions = make(map[string]string)
 				}
@@ -138,16 +145,68 @@ func (r *Room) Run() {
 					assigned = "unassigned"
 				}
 				r.PlayerPositions[client.Username] = assigned
+				pos := client.Room.PlayerPositions[client.Username]
+				var x, y float64
+				deckWidth := 60.0
+				deckHeight := 90.0
+				xOffset := 50.0
+				yOffset := 225.0
+				switch pos {
+				case "topLeft":
+					x = -xOffset - deckWidth/2
+					y = -yOffset - deckHeight/2
+				case "topRight":
+					x = xOffset - deckWidth/2
+					y = -yOffset - deckHeight/2
+				case "bottomLeft":
+					x = -xOffset - deckWidth/2
+					y = yOffset - deckHeight/2
+				case "bottomRight":
+					x = xOffset - deckWidth/2
+					y = yOffset - deckHeight/2
+				default:
+					x, y = 0, 0
+				}
+				deck := &Deck{
+					ID:         client.Username,
+					X:          x,
+					Y:          y,
+					Cards:      parsedCards,
+					Commanders: parsedCommanders,
+				}
+				r.Decks[client.Username] = deck
+				commanderYOffset := 100.0
+				if pos == "bottomLeft" || pos == "bottomRight" {
+					commanderYOffset = -100.0
+				}
+				commanderXOffsetSign := -1.0
+				switch pos {
+				case "topRight", "bottomRight":
+					commanderXOffsetSign = 1.0
+				}
+				for i, commander := range parsedCommanders {
+					card := &BoardCard{
+						Card:      commander,
+						X:         x + commanderXOffsetSign*float64(i)*70,
+						Y:         y + commanderYOffset,
+						Owner:     client.Username,
+						Tapped:    false,
+						FlipIndex: 0,
+					}
+					r.Cards[commander.ID] = card
+					commanderBoardCards = append(commanderBoardCards, card)
+				}
+				r.LifeTotals[client.Username] = 40
+				r.Decks[client.Username] = deck
+
 				r.HandSizes[client.Username] = 0
 			}
 
-			// Prepare cards (common for all clients)
 			cards := make([]*BoardCard, 0, len(r.Cards))
 			for _, card := range r.Cards {
 				cards = append(cards, card)
 			}
 
-			// Send board state
 			payload := map[string]interface{}{
 				"type":        "BOARD_STATE",
 				"cards":       cards,
@@ -158,11 +217,24 @@ func (r *Room) Run() {
 				"turn":        r.Turn,
 				"counters":    r.Counters,
 				"diceRollers": r.DiceRollers,
+				"spectators":  r.GetSpectators(),
+				"lifeTotals":  r.LifeTotals,
 			}
 			data, _ := json.Marshal(payload)
 			client.Send <- data
-
 			r.mu.Unlock()
+
+			payload2 := map[string]interface{}{
+				"type":       "USER_JOINED",
+				"users":      r.GetUsernames(),
+				"spectators": r.GetSpectators(),
+				"decks":      r.Decks,
+				"positions":  r.PlayerPositions,
+				"commanders": commanderBoardCards,
+				"lifeTotals":  r.LifeTotals,
+			}
+			joinedData, _ := json.Marshal(payload2)
+			client.Room.BroadcastExcept(joinedData, client)
 
 		case msg := <-r.Broadcast:
 			log.Printf("Broadcasting to %d clients", len(r.Clients))
@@ -173,7 +245,7 @@ func (r *Room) Run() {
 			r.mu.Lock()
 			log.Printf("Client %s disconnected", client.Username)
 			if _, ok := r.Spectators[client]; ok {
-				delete(r.Spectators, client);
+				delete(r.Spectators, client)
 				r.mu.Unlock()
 			} else if _, ok := r.Clients[client]; ok {
 				delete(r.Clients, client)
@@ -221,7 +293,7 @@ func (r *Room) GetUsernames() []string {
 	return usernames
 }
 
-func (r * Room) GetSpectators() []string {
+func (r *Room) GetSpectators() []string {
 	usernames := []string{}
 	for client := range r.Spectators {
 		usernames = append(usernames, client.Username)

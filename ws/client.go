@@ -15,6 +15,7 @@ type Client struct {
 	Room      *Room
 	Username  string
 	Spectator bool
+	DeckUrl   string
 	closeOnce sync.Once
 }
 
@@ -49,89 +50,6 @@ func (c *Client) read() {
 		}
 
 		switch msg.Type {
-		case "JOIN":
-			var commanderBoardCards []*BoardCard
-			if !c.Spectator {
-				c.Username = msg.Username
-				rawDeckJSON, err := FetchDeckJSON(msg.DeckURL)
-				if err != nil {
-					log.Printf("error fetching deck: %v", err)
-					c.sendError("Error fetching deck")
-					return
-				}
-				parsedCards, parsedCommanders, err := ParseDeck(rawDeckJSON)
-				if err != nil {
-					log.Printf("error parsing deck: %v", err)
-					return
-				}
-				c.Room.mu.Lock()
-				c.Room.DeckURLs[c.Username] = msg.DeckURL
-				pos := c.Room.PlayerPositions[c.Username]
-				var x, y float64
-				deckWidth := 60.0
-				deckHeight := 90.0
-				xOffset := 50.0
-				yOffset := 225.0
-				switch pos {
-				case "topLeft":
-					x = -xOffset - deckWidth/2
-					y = -yOffset - deckHeight/2
-				case "topRight":
-					x = xOffset - deckWidth/2
-					y = -yOffset - deckHeight/2
-				case "bottomLeft":
-					x = -xOffset - deckWidth/2
-					y = yOffset - deckHeight/2
-				case "bottomRight":
-					x = xOffset - deckWidth/2
-					y = yOffset - deckHeight/2
-				default:
-					x, y = 0, 0
-				}
-				deck := &Deck{
-					ID:         c.Username,
-					X:          x,
-					Y:          y,
-					Cards:      parsedCards,
-					Commanders: parsedCommanders,
-				}
-				c.Room.Decks[c.Username] = deck
-				commanderYOffset := 100.0
-				if pos == "bottomLeft" || pos == "bottomRight" {
-					commanderYOffset = -100.0
-				}
-				commanderXOffsetSign := -1.0
-				switch pos {
-				case "topRight", "bottomRight":
-					commanderXOffsetSign = 1.0
-				}
-				for i, commander := range parsedCommanders {
-					card := &BoardCard{
-						Card:      commander,
-						X:         x + commanderXOffsetSign*float64(i)*70,
-						Y:         y + commanderYOffset,
-						Owner:     c.Username,
-						Tapped:    false,
-						FlipIndex: 0,
-					}
-					c.Room.Cards[commander.ID] = card
-					commanderBoardCards = append(commanderBoardCards, card)
-				}
-				c.Room.LifeTotals[c.Username] = 40
-				c.Room.mu.Unlock()
-			}
-			payload := map[string]interface{}{
-				"type":       "USER_JOINED",
-				"users":      c.Room.GetUsernames(),
-				"spectators": c.Room.GetSpectators(),
-				"decks":      c.Room.Decks,
-				"positions":  c.Room.PlayerPositions,
-				"commanders": commanderBoardCards,
-				"lifeTotals": c.Room.LifeTotals,
-			}
-			joinedData, _ := json.Marshal(payload)
-			c.Room.BroadcastSafe(joinedData)
-
 		case "DRAW_CARD":
 			deck, ok := c.Room.Decks[c.Username]
 			if !ok || len(deck.Cards) == 0 {

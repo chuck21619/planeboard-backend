@@ -2,8 +2,8 @@ package ws
 
 import (
 	"net/http"
-	"time"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -21,6 +21,7 @@ func ServeWebSocket(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	roomID := r.URL.Query().Get("room")
 	username := r.URL.Query().Get("username")
 	spectatorString := r.URL.Query().Get("spectator")
+	deckUrl := r.URL.Query().Get("deckUrl")
 	spectator, _ := strconv.ParseBool(spectatorString)
 
 	if roomID == "" {
@@ -33,11 +34,12 @@ func ServeWebSocket(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	}
 	room := hub.GetOrCreateRoom(roomID)
 	client := &Client{
-		Conn:     conn,
-		Send:     make(chan []byte, 16),
-		Room:     room,
-		Username: username,
+		Conn:      conn,
+		Send:      make(chan []byte, 16),
+		Room:      room,
+		Username:  username,
 		Spectator: spectator,
+		DeckUrl:   deckUrl,
 	}
 	if room.Turn == "" {
 		room.Turn = username
