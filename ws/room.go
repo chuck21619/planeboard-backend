@@ -11,6 +11,7 @@ var defaultPositions = []string{"bottomLeft", "topLeft", "topRight", "bottomRigh
 type Room struct {
 	ID              string
 	Clients         map[*Client]bool
+	Spectators      map[*Client]bool
 	Register        chan *Client
 	Unregister      chan *Client
 	Broadcast       chan []byte
@@ -30,6 +31,7 @@ func NewRoom(id string) *Room {
 	return &Room{
 		ID:              id,
 		Clients:         make(map[*Client]bool),
+		Spectators:      make(map[*Client]bool),
 		Register:        make(chan *Client),
 		Unregister:      make(chan *Client),
 		Broadcast:       make(chan []byte),
@@ -58,11 +60,21 @@ func (r *Room) BroadcastSafe(msg []byte) {
 			client.close()
 		}
 	}
+
+	for spectator := range r.Spectators {
+		select {
+		case spectator.Send <- msg:
+		default:
+			log.Printf("dropping unresponsive spectator: %s", spectator.Username)
+			spectator.close()
+		}
+	}
 }
 
 func (r *Room) BroadcastExcept(msg []byte, exclude *Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
 	for client := range r.Clients {
 		if client != exclude {
 			select {
@@ -74,6 +86,17 @@ func (r *Room) BroadcastExcept(msg []byte, exclude *Client) {
 			}
 		}
 	}
+
+	for spectator := range r.Spectators {
+		if spectator != exclude {
+			select {
+			case spectator.Send <- msg:
+			default:
+				log.Printf("dropping unresponsive spectator: %s", spectator.Username)
+				spectator.close()
+			}
+		}
+	}
 }
 
 func (r *Room) Run() {
@@ -81,45 +104,54 @@ func (r *Room) Run() {
 		select {
 		case client := <-r.Register:
 			r.mu.Lock()
-			r.Clients[client] = true
+
+			isSpectator := len(r.Clients) >= 4 || client.Spectator
+
+			if isSpectator {
+				r.Spectators[client] = true
+			} else {
+				r.Clients[client] = true
+
+				deck := &Deck{
+					ID: client.Username,
+					X:  100,
+					Y:  100,
+				}
+				client.Room.Decks[client.Username] = deck
+
+				if r.PlayerPositions == nil {
+					r.PlayerPositions = make(map[string]string)
+				}
+				taken := make(map[string]bool)
+				for _, pos := range r.PlayerPositions {
+					taken[pos] = true
+				}
+
+				var assigned string
+				for _, pos := range defaultPositions {
+					if !taken[pos] {
+						assigned = pos
+						break
+					}
+				}
+				if assigned == "" {
+					assigned = "unassigned"
+				}
+				r.PlayerPositions[client.Username] = assigned
+				r.HandSizes[client.Username] = 0
+			}
+
+			// Prepare cards (common for all clients)
 			cards := make([]*BoardCard, 0, len(r.Cards))
 			for _, card := range r.Cards {
 				cards = append(cards, card)
 			}
-			deck := &Deck{
-				ID: client.Username,
-				X:  100,
-				Y:  100,
-			}
-			client.Room.Decks[client.Username] = deck
-			if r.PlayerPositions == nil {
-				r.PlayerPositions = make(map[string]string)
-			}
-			taken := make(map[string]bool)
-			for _, pos := range r.PlayerPositions {
-				taken[pos] = true
-			}
 
-			var assigned string
-			for _, pos := range defaultPositions {
-				if !taken[pos] {
-					assigned = pos
-					break
-				}
-
-			}
-			if assigned == "" {
-				// fallback in case all positions are taken
-				assigned = "unassigned"
-			}
-
-			r.PlayerPositions[client.Username] = assigned
-
-			r.HandSizes[client.Username] = 0
+			// Send board state
 			payload := map[string]interface{}{
 				"type":        "BOARD_STATE",
 				"cards":       cards,
-				"decks":       client.Room.Decks,
+				"decks":       r.Decks,
 				"users":       r.GetUsernames(),
 				"positions":   r.PlayerPositions,
 				"handSizes":   r.HandSizes,
@@ -129,16 +161,20 @@ func (r *Room) Run() {
 			}
 			data, _ := json.Marshal(payload)
 			client.Send <- data
+
 			r.mu.Unlock()
 
 		case msg := <-r.Broadcast:
 			log.Printf("Broadcasting to %d clients", len(r.Clients))
+			log.Printf("Broadcasting to %d spectators", len(r.Spectators))
 			r.BroadcastSafe(msg)
 
 		case client := <-r.Unregister:
 			r.mu.Lock()
 			log.Printf("Client %s disconnected", client.Username)
-			if _, ok := r.Clients[client]; ok {
+			if _, ok := r.Spectators[client]; ok {
+				delete(r.Spectators, client);
+			} else if _, ok := r.Clients[client]; ok {
 				delete(r.Clients, client)
 				delete(r.Decks, client.Username)
 				delete(r.DeckURLs, client.Username)
@@ -179,6 +215,14 @@ func (r *Room) Run() {
 func (r *Room) GetUsernames() []string {
 	usernames := []string{}
 	for client := range r.Clients {
+		usernames = append(usernames, client.Username)
+	}
+	return usernames
+}
+
+func (r * Room) GetSpectators() []string {
+	usernames := []string{}
+	for client := range r.Spectators {
 		usernames = append(usernames, client.Username)
 	}
 	return usernames

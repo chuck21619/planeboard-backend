@@ -3,6 +3,7 @@ package ws
 import (
 	"net/http"
 	"time"
+	"strconv"
 
 	"github.com/gorilla/websocket"
 )
@@ -19,6 +20,8 @@ var upgrader = websocket.Upgrader{
 func ServeWebSocket(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	roomID := r.URL.Query().Get("room")
 	username := r.URL.Query().Get("username")
+	spectatorString := r.URL.Query().Get("spectator")
+	spectator, _ := strconv.ParseBool(spectatorString)
 
 	if roomID == "" {
 		http.Error(w, "Missing room ID", http.StatusBadRequest)
@@ -34,6 +37,7 @@ func ServeWebSocket(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		Send:     make(chan []byte, 16),
 		Room:     room,
 		Username: username,
+		Spectator: spectator,
 	}
 	if room.Turn == "" {
 		room.Turn = username
