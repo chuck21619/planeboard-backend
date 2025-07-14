@@ -20,7 +20,7 @@ func main() {
 	}
 	hub := ws.NewHub()
 	go func() {
-		ticker := time.NewTicker(1 * time.Minute)
+		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
 
 		for {
