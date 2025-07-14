@@ -7,7 +7,7 @@ import (
 
 type Hub struct {
 	Rooms map[string]*Room
-	mu    sync.Mutex
+	Mu    sync.Mutex
 }
 
 func NewHub() *Hub {
@@ -17,8 +17,8 @@ func NewHub() *Hub {
 }
 
 func (h *Hub) GetOrCreateRoom(id string) *Room {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.Mu.Lock()
+	defer h.Mu.Unlock()
 
 	room, exists := h.Rooms[id]
 	if !exists {
@@ -27,9 +27,9 @@ func (h *Hub) GetOrCreateRoom(id string) *Room {
 
 		go func() {
 			room.Run()
-			h.mu.Lock()
+			h.Mu.Lock()
 			delete(h.Rooms, id)
-			h.mu.Unlock()
+			h.Mu.Unlock()
 			log.Printf("Room %s deleted", id)
 		}()
 	}

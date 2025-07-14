@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/csv"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/chuck21619/planeboard-backend/ws"
 	"github.com/joho/godotenv"
@@ -16,6 +19,20 @@ func main() {
 		}
 	}
 	hub := ws.NewHub()
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+
+		for {
+			<-ticker.C
+
+			hub.Mu.Lock()
+			roomCount := len(hub.Rooms)
+			hub.Mu.Unlock()
+
+			logRoomCountToCSV("metrics.csv", roomCount)
+		}
+	}()
 
 	http.HandleFunc("/health", withCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -46,5 +63,26 @@ func withCORS(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		next(w, r)
+	}
+}
+
+func logRoomCountToCSV(filename string, roomCount int) {
+	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Printf("Failed to open CSV: %v", err)
+		return
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	timestamp := time.Now().Format(time.RFC3339)
+	record := []string{timestamp, fmt.Sprintf("%d", roomCount)}
+
+	if err := writer.Write(record); err != nil {
+		log.Printf("Failed to write to CSV: %v", err)
+	} else {
+		log.Println("Logged room count to CSV.")
 	}
 }
