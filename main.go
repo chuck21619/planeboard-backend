@@ -127,7 +127,14 @@ func SendEmail(body string) error {
 	address := os.Getenv("GMAIL_ADDRESS")
 	password := os.Getenv("GMAIL_APP_PASSWORD")
 	auth := smtp.PlainAuth("", address, password, "smtp.gmail.com")
-	message := []byte("Subject: " + "\r\n" + body)
+
+	subject := "Planeboard Report"
+	message := []byte(
+		"To: " + address + "\r\n" +
+			"Subject: " + subject + "\r\n" +
+			"Content-Type: text/plain; charset=\"UTF-8\"\r\n" +
+			"\r\n" +
+			body + "\r\n")
 
 	err := smtp.SendMail("smtp.gmail.com:587", auth, address, []string{address}, message)
 	if err != nil {
