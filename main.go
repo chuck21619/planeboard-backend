@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/csv"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,9 +9,11 @@ import (
 	"net/smtp"
 	"os"
 	"time"
+	"net"
 
 	"github.com/chuck21619/planeboard-backend/ws"
 	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -20,9 +22,26 @@ func main() {
 			log.Fatal("Error loading .env file")
 		}
 	}
+
+	dbURL := os.Getenv("SUPABASE_DB_URL")
+	if dbURL == "" {
+		log.Fatal("SUPABASE_DB_URL is not set")
+	}
+
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to DB: %v", err)
+	}
+	defer db.Close()
+
+	// Test connection
+	if err := db.Ping(); err != nil {
+		log.Fatalf("Failed to ping DB: %v", err)
+	}
+
 	hub := ws.NewHub()
 	go func() {
-		ticker := time.NewTicker(1 * time.Hour)
+		ticker := time.NewTicker(1 * time.Minute)
 		defer ticker.Stop()
 
 		for {
@@ -32,7 +51,7 @@ func main() {
 			roomCount := len(hub.Rooms)
 			hub.Mu.Unlock()
 
-			logRoomCountToCSV("metrics.csv", roomCount)
+			logRoomCountToSupabase(db, roomCount)
 		}
 	}()
 
@@ -71,24 +90,10 @@ func withCORS(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func logRoomCountToCSV(filename string, roomCount int) {
-	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+func logRoomCountToSupabase(db *sql.DB, count int) {
+	_, err := db.Exec(`INSERT INTO room_metrics (timestamp, room_count) VALUES ($1, $2)`, time.Now(), count)
 	if err != nil {
-		log.Printf("Failed to open CSV: %v", err)
-		return
-	}
-	defer file.Close()
-
-	writer := csv.NewWriter(file)
-	defer writer.Flush()
-
-	timestamp := time.Now().Format(time.RFC3339)
-	record := []string{timestamp, fmt.Sprintf("%d", roomCount)}
-
-	if err := writer.Write(record); err != nil {
-		log.Printf("Failed to write to CSV: %v", err)
-	} else {
-		log.Println("Logged room count to CSV.")
+		log.Printf("Failed to log metrics: %v", err)
 	}
 }
 
