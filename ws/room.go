@@ -111,21 +111,28 @@ func (r *Room) Run() {
 			if isSpectator {
 				r.Spectators[client] = true
 			} else {
+				if _, exists := r.PlayerPositions[client.Username]; exists {
+					client.sendError("Username already in room")
+					r.mu.Unlock()
+					continue
+				}
 				r.Clients[client] = true
 
 				rawDeckJSON, err := FetchDeckJSON(client.DeckUrl)
 				if err != nil {
 					log.Printf("error fetching deck: %v", err)
 					client.sendError("Error fetching deck")
-					return
+					r.mu.Unlock()
+					continue
 				}
 				parsedCards, parsedCommanders, err := ParseDeck(rawDeckJSON)
 				if err != nil {
 					log.Printf("error parsing deck: %v", err)
-					return
+					r.mu.Unlock()
+					continue
 				}
 				r.DeckURLs[client.Username] = client.DeckUrl
-				
+
 				if r.PlayerPositions == nil {
 					r.PlayerPositions = make(map[string]string)
 				}
@@ -231,7 +238,7 @@ func (r *Room) Run() {
 				"decks":      r.Decks,
 				"positions":  r.PlayerPositions,
 				"commanders": commanderBoardCards,
-				"lifeTotals":  r.LifeTotals,
+				"lifeTotals": r.LifeTotals,
 			}
 			joinedData, _ := json.Marshal(payload2)
 			client.Room.BroadcastExcept(joinedData, client)
