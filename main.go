@@ -22,37 +22,31 @@ func main() {
 		}
 	}
 
-	dbURL := os.Getenv("SUPABASE_DB_URL")
-	if dbURL == "" {
-		log.Fatal("SUPABASE_DB_URL is not set")
-	}
-
-	db, err := sql.Open("postgres", dbURL)
-	if err != nil {
-		log.Fatalf("Failed to connect to DB: %v", err)
-	}
-	defer db.Close()
-
-	// Test connection
-	if err := db.Ping(); err != nil {
-		log.Fatalf("Failed to ping DB: %v", err)
-	}
-
 	hub := ws.NewHub()
-	go func() {
-		ticker := time.NewTicker(1 * time.Minute)
-		defer ticker.Stop()
 
-		for {
-			<-ticker.C
-
-			hub.Mu.Lock()
-			roomCount := len(hub.Rooms)
-			hub.Mu.Unlock()
-
-			logRoomCountToSupabase(db, roomCount)
+	//metrics
+	if os.Getenv("ENVIRONMENT") == "production" {
+		dbURL := os.Getenv("SUPABASE_DB_URL")
+		if dbURL == "" {
+			log.Println("WARNING: SUPABASE_DB_URL is not set")
 		}
-	}()
+		db, err := sql.Open("postgres", dbURL)
+		if err != nil {
+			log.Printf("WARNING: Failed to connect to DB: %v", err)
+		}
+		defer db.Close()
+		go func() {
+			ticker := time.NewTicker(1 * time.Minute)
+			defer ticker.Stop()
+			for {
+				<-ticker.C
+				hub.Mu.Lock()
+				roomCount := len(hub.Rooms)
+				hub.Mu.Unlock()
+				logRoomCountToSupabase(db, roomCount)
+			}
+		}()
+	}
 
 	http.HandleFunc("/health", withCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -66,7 +60,6 @@ func main() {
 	http.HandleFunc("/report", withCORS(handleReport))
 
 	port := os.Getenv("PORT")
-
 	log.Printf("Server started on :%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
@@ -79,18 +72,16 @@ func withCORS(next http.HandlerFunc) http.HandlerFunc {
 			w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		}
-
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-
 		next(w, r)
 	}
 }
 
 func logRoomCountToSupabase(db *sql.DB, count int) {
-	_, err := db.Exec(`INSERT INTO room_metrics (timestamp, room_count) VALUES ($1, $2)`, time.Now(), count)
+	_, err := db.Exec(`INSERT INTO metrics (timestamp, room_count) VALUES ($1, $2)`, time.Now(), count)
 	if err != nil {
 		log.Printf("Failed to log metrics: %v", err)
 	}
@@ -101,29 +92,24 @@ func handleReport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
 	var payload struct {
 		Message string `json:"message"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
-
 	if payload.Message == "" {
 		http.Error(w, "Empty message", http.StatusBadRequest)
 		return
 	}
-
 	err := SendEmail(payload.Message)
 	if err != nil {
 		log.Printf("Failed to send report: %v", err)
 		http.Error(w, "Failed to send report", http.StatusInternalServerError)
 		return
 	}
-
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -131,7 +117,6 @@ func SendEmail(body string) error {
 	address := os.Getenv("GMAIL_ADDRESS")
 	password := os.Getenv("GMAIL_APP_PASSWORD")
 	auth := smtp.PlainAuth("", address, password, "smtp.gmail.com")
-
 	subject := "Planeboard Report"
 	message := []byte(
 		"To: " + address + "\r\n" +
