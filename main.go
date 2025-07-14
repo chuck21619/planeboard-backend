@@ -9,7 +9,6 @@ import (
 	"net/smtp"
 	"os"
 	"time"
-	"net"
 
 	"github.com/chuck21619/planeboard-backend/ws"
 	"github.com/joho/godotenv"
