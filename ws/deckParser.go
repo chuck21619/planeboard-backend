@@ -128,6 +128,7 @@ func ParseDeck(data []byte) ([]Card, []Card, error) {
 				UID:          c.Card.UID,
 				HasTokens:    len(c.Card.OracleCard.Tokens) > 0,
 				NumFaces:     numFaces,
+				Token:        false,
 			}
 			if isCommander {
 				commanderCards = append(commanderCards, card)

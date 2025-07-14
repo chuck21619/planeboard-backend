@@ -8,6 +8,7 @@ type Card struct {
 	UID          string `json:"uid"`
 	HasTokens    bool   `json:"hasTokens"`
 	NumFaces     int    `json:"numFaces"`
+	Token        bool   `json:"token"`
 }
 
 type BoardCard struct {

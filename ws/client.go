@@ -109,6 +109,7 @@ func (c *Client) read() {
 				UID:          msg.Card.UID,
 				HasTokens:    msg.Card.HasTokens,
 				NumFaces:     msg.Card.NumFaces,
+				Token:        msg.Card.Token,
 			}
 			deck.Cards = append([]Card{card}, deck.Cards...)
 			c.Room.mu.Unlock()
@@ -142,6 +143,7 @@ func (c *Client) read() {
 				UID:          msg.Card.UID,
 				HasTokens:    msg.Card.HasTokens,
 				NumFaces:     msg.Card.NumFaces,
+				Token:        msg.Card.Token,
 			}
 			deck.Cards = append(deck.Cards, card)
 			c.Room.mu.Unlock()
@@ -175,6 +177,7 @@ func (c *Client) read() {
 				UID:          msg.Card.UID,
 				HasTokens:    msg.Card.HasTokens,
 				NumFaces:     msg.Card.NumFaces,
+				Token:        msg.Card.Token,
 			}
 			deck.Cards = append(deck.Cards, card)
 			r := mrand.New(mrand.NewSource(time.Now().UnixNano()))
@@ -205,6 +208,7 @@ func (c *Client) read() {
 					UID:          msg.Card.UID,
 					HasTokens:    msg.Card.HasTokens,
 					NumFaces:     msg.Card.NumFaces,
+					Token:        msg.Card.Token,
 				},
 				X:         msg.Card.X,
 				Y:         msg.Card.Y,
@@ -247,6 +251,7 @@ func (c *Client) read() {
 					UID:       msg.Card.UID,
 					HasTokens: msg.Card.HasTokens,
 					NumFaces:  msg.Card.NumFaces,
+					Token:     true,
 				},
 				X:         msg.Card.X,
 				Y:         msg.Card.Y,
@@ -263,6 +268,17 @@ func (c *Client) read() {
 			data, _ := json.Marshal(broadcast)
 			c.Room.BroadcastExcept(data, c)
 
+		case "DELETE_TOKEN":
+			c.Room.mu.Lock()
+			delete(c.Room.Cards, msg.ID)
+			c.Room.mu.Unlock()
+			broadcast := map[string]interface{}{
+				"type": "TOKEN_DELETED",
+				"id":   msg.ID,
+			}
+			data, _ := json.Marshal(broadcast)
+			c.Room.BroadcastExcept(data, c)
+
 		case "CARD_PLAYED_FROM_LIBRARY":
 			c.Room.mu.Lock()
 			card := &BoardCard{
@@ -274,6 +290,7 @@ func (c *Client) read() {
 					UID:          msg.Card.UID,
 					HasTokens:    msg.Card.HasTokens,
 					NumFaces:     msg.Card.NumFaces,
+					Token:        msg.Card.Token,
 				},
 				X:         msg.Card.X,
 				Y:         msg.Card.Y,
