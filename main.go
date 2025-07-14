@@ -36,7 +36,7 @@ func main() {
 		}
 		defer db.Close()
 		go func() {
-			ticker := time.NewTicker(1 * time.Minute)
+			ticker := time.NewTicker(1 * time.Hour)
 			defer ticker.Stop()
 			for {
 				<-ticker.C
