@@ -330,6 +330,20 @@ func (c *Client) read() {
 			updated, _ := json.Marshal(wrapped)
 			c.Room.BroadcastExcept(updated, c)
 
+		case "TAP_CARDS":
+			c.Room.mu.Lock()			
+			for _, card := range msg.Cards {
+				c.Room.Cards[card.ID].Tapped = msg.Tapped
+			}
+			c.Room.mu.Unlock()
+			wrapped := map[string]interface{}{
+				"type":   "CARDS_TAPPED",
+				"cards":  msg.Cards,
+				"tapped": msg.Tapped,
+			}
+			updated, _ := json.Marshal(wrapped)
+			c.Room.BroadcastExcept(updated, c)
+
 		case "SHUFFLE_DECK":
 			c.Room.mu.Lock()
 			deck := c.Room.Decks[msg.ID]
@@ -372,6 +386,19 @@ func (c *Client) read() {
 				"x":         card.X,
 				"y":         card.Y,
 				"flipIndex": msg.FlipIndex,
+			}
+			updated, _ := json.Marshal(wrapped)
+			c.Room.BroadcastExcept(updated, c)
+
+		case "MOVE_CARDS":
+			c.Room.mu.Lock()
+			for _, card := range msg.Cards {
+				c.Room.Cards[card.ID] = &card
+			}
+			c.Room.mu.Unlock()
+			wrapped := map[string]interface{}{
+				"type":  "CARDS_MOVED",
+				"cards": msg.Cards,
 			}
 			updated, _ := json.Marshal(wrapped)
 			c.Room.BroadcastExcept(updated, c)
