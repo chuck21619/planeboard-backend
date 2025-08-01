@@ -331,7 +331,7 @@ func (c *Client) read() {
 			c.Room.BroadcastExcept(updated, c)
 
 		case "TAP_CARDS":
-			c.Room.mu.Lock()			
+			c.Room.mu.Lock()
 			for _, card := range msg.Cards {
 				c.Room.Cards[card.ID].Tapped = msg.Tapped
 			}
@@ -438,6 +438,26 @@ func (c *Client) read() {
 			broadcast := map[string]interface{}{
 				"type":     "RETURN_TO_HAND",
 				"id":       msg.ID,
+				"player":   msg.Username,
+				"handSize": handSize,
+			}
+			data, err := json.Marshal(broadcast)
+			if err == nil {
+				c.Room.BroadcastExcept(data, c)
+			}
+
+		case "RETURN_CARDS_TO_HAND":
+			c.Room.mu.Lock()
+			for _, card := range msg.Cards {
+				delete(c.Room.Cards, card.ID)
+			}
+			c.Room.HandSizes[msg.Username] += len(msg.Cards)
+			handSize := c.Room.HandSizes[msg.Username]
+			c.Room.mu.Unlock()
+
+			broadcast := map[string]interface{}{
+				"type":     "RETURN_CARDS_TO_HAND",
+				"cards":    msg.Cards,
 				"player":   msg.Username,
 				"handSize": handSize,
 			}
