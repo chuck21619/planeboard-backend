@@ -99,7 +99,7 @@ func (c *Client) read() {
 			} else if msg.Source == "hand" {
 				c.Room.HandSizes[msg.Username] -= 1
 			} else {
-				return
+				continue
 			}
 			card := Card{
 				ID:           msg.Card.ID,
@@ -120,6 +120,40 @@ func (c *Client) read() {
 				"deckCards": deck.Cards,
 				"handSize":  c.Room.HandSizes,
 				"id":        msg.Card.ID,
+				"source":    msg.Source,
+			}
+			broadcast, _ := json.Marshal(update)
+			c.Room.BroadcastExcept(broadcast, c)
+
+		case "CARDS_TO_TOP_OF_DECK":
+			c.Room.mu.Lock()
+			deck := c.Room.Decks[msg.Username]
+			for _, card := range msg.Cards {
+				if msg.Source == "board" {
+					delete(c.Room.Cards, card.ID)
+				} else {
+					continue
+				}
+				deckCard := Card{
+					ID:           card.ID,
+					Name:         card.Name,
+					ImageURL:     card.ImageURL,
+					ImageURLBack: card.ImageURLBack,
+					UID:          card.UID,
+					HasTokens:    card.HasTokens,
+					NumFaces:     card.NumFaces,
+					Token:        card.Token,
+				}
+				deck.Cards = append([]Card{deckCard}, deck.Cards...)
+			}
+			c.Room.mu.Unlock()
+			update := map[string]interface{}{
+				"username":  c.Username,
+				"type":      "CARDS_TO_TOP_OF_DECK",
+				"deckId":    msg.Username,
+				"deckCards": deck.Cards,
+				"handSize":  c.Room.HandSizes,
+				"ids":       getCardIDs(msg.Cards),
 				"source":    msg.Source,
 			}
 			broadcast, _ := json.Marshal(update)
@@ -154,6 +188,40 @@ func (c *Client) read() {
 				"deckCards": deck.Cards,
 				"handSize":  c.Room.HandSizes,
 				"id":        msg.Card.ID,
+				"source":    msg.Source,
+			}
+			broadcast, _ := json.Marshal(update)
+			c.Room.BroadcastExcept(broadcast, c)
+
+		case "CARDS_TO_BOTTOM_OF_DECK":
+			c.Room.mu.Lock()
+			deck := c.Room.Decks[msg.Username]
+			for _, card := range msg.Cards {
+				if msg.Source == "board" {
+					delete(c.Room.Cards, card.ID)
+				} else {
+					continue
+				}
+				deckCard := Card{
+					ID:           card.ID,
+					Name:         card.Name,
+					ImageURL:     card.ImageURL,
+					ImageURLBack: card.ImageURLBack,
+					UID:          card.UID,
+					HasTokens:    card.HasTokens,
+					NumFaces:     card.NumFaces,
+					Token:        card.Token,
+				}
+				deck.Cards = append(deck.Cards, deckCard)
+			}
+			c.Room.mu.Unlock()
+			update := map[string]interface{}{
+				"username":  c.Username,
+				"type":      "CARDS_TO_BOTTOM_OF_DECK",
+				"deckId":    msg.Username,
+				"deckCards": deck.Cards,
+				"handSize":  c.Room.HandSizes,
+				"ids":       getCardIDs(msg.Cards),
 				"source":    msg.Source,
 			}
 			broadcast, _ := json.Marshal(update)
@@ -196,6 +264,44 @@ func (c *Client) read() {
 			}
 			broadcast, _ := json.Marshal(update)
 			c.Room.BroadcastSafe(broadcast)
+
+		case "CARDS_TO_SHUFFLE_IN_DECK":
+			c.Room.mu.Lock()
+			deck := c.Room.Decks[msg.Username]
+			for _, card := range msg.Cards {
+				if msg.Source == "board" {
+					delete(c.Room.Cards, card.ID)
+				} else {
+					continue
+				}
+				deckCard := Card{
+					ID:           card.ID,
+					Name:         card.Name,
+					ImageURL:     card.ImageURL,
+					ImageURLBack: card.ImageURLBack,
+					UID:          card.UID,
+					HasTokens:    card.HasTokens,
+					NumFaces:     card.NumFaces,
+					Token:        card.Token,
+				}
+				deck.Cards = append(deck.Cards, deckCard)
+			}
+			r := mrand.New(mrand.NewSource(time.Now().UnixNano()))
+			r.Shuffle(len(deck.Cards), func(i, j int) {
+				deck.Cards[i], deck.Cards[j] = deck.Cards[j], deck.Cards[i]
+			})
+			c.Room.mu.Unlock()
+			update := map[string]interface{}{
+				"username":  c.Username,
+				"type":      "CARDS_TO_SHUFFLE_IN_DECK",
+				"deckId":    msg.Username,
+				"deckCards": deck.Cards,
+				"handSize":  c.Room.HandSizes,
+				"ids":       getCardIDs(msg.Cards),
+				"source":    msg.Source,
+			}
+			broadcast, _ := json.Marshal(update)
+			c.Room.BroadcastExcept(broadcast, c)
 
 		case "CARD_PLAYED_FROM_HAND":
 			c.Room.mu.Lock()
@@ -604,6 +710,14 @@ func (c *Client) read() {
 			c.Room.BroadcastExcept(broadcast, c)
 		}
 	}
+}
+
+func getCardIDs(cards []BoardCard) []string {
+	ids := make([]string, len(cards))
+	for i, c := range cards {
+		ids[i] = c.ID
+	}
+	return ids
 }
 
 func (c *Client) write() {
